@@ -1,6 +1,6 @@
 name: dart_accuraterip
 description: Pure-Dart AccurateRip v1/v2 CRC, disc ID computation, and database lookup for CD ripping and verification tools.
-version: 0.0.1
+version: 0.0.2
 repository: https://github.com/bovinemagnet/dart_accuraterip
 homepage: https://github.com/bovinemagnet/dart_accuraterip
 issue_tracker: https://github.com/bovinemagnet/dart_accuraterip/issues

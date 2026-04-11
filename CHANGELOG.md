@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.0.2
+
+- Fix pub.dev score deductions flagged against 0.0.1:
+  - `README.md` — change the AccurateRip marketing link from
+    `http://www.accuraterip.com/` to `https://www.accuraterip.com/`
+    so pub.dev's insecure-link check is satisfied. The runtime
+    `buildAccurateRipUrl` output is unchanged because the
+    AccurateRip database API itself remains HTTP-only.
+  - Add `example/README.md` — a landing page describing the two
+    existing runnable samples (`compute_crc.dart` and
+    `query_disc.dart`). pub.dev's example detector only
+    recognises a handful of canonical filenames; adding an
+    `example/README.md` satisfies the check without renaming
+    the existing files.
+- No library API changes; 0.0.1 consumers can upgrade freely.
+
 ## 0.0.1
 
 - Initial release.

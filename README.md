@@ -3,7 +3,7 @@
 Pure-Dart [AccurateRip][ar] v1/v2 CRC computation, disc-ID math, and
 database lookup for CD ripping and verification tools.
 
-[ar]: http://www.accuraterip.com/
+[ar]: https://www.accuraterip.com/
 
 **Zero runtime dependencies.** The HTTP client accepts an injected
 fetcher callback, so you can bring any HTTP library
