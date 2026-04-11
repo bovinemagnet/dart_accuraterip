@@ -15,11 +15,17 @@ stub) without forcing a transitive dep on every consumer.
 - **AccurateRip v1 and v2 CRC** over raw PCM (16-bit signed LE,
   stereo interleaved), with optional first/last-track lead-in /
   lead-out skip (the standard 2940-frame exclusion).
+- **WAV input helpers** — `extractPcmFromWav`, `computeArV1FromWav`,
+  `computeArV2FromWav` walk a RIFF/WAVE byte buffer and run the
+  CRC in a single call (tolerant of extra `LIST`/`INFO`/`fact`
+  chunks and truncated trailing data).
 - **Disc ID computation** from per-track sample counts — produces
   `discId1`, `discId2`, and the legacy `cddbDiscId`.
 - **URL builder** for the AccurateRip HTTP database lookup.
 - **Binary response parser** for the AccurateRip chunked reply
-  format, aggregating multiple pressings per track.
+  format, aggregating multiple pressings per track, with a
+  canonical `AccurateRipEntry.matches(computedV1:, computedV2:)`
+  verification helper.
 - **`AccurateRipClient`** convenience wrapper with an injectable
   fetcher so you can plug in any HTTP layer in two lines.
 
@@ -38,19 +44,22 @@ dependencies:
 
 ## Platform support
 
-| Surface                          | Dart VM / Flutter native | Flutter Web / dart2js |
-| -------------------------------- | :----------------------: | :-------------------: |
-| `computeArV1` / `computeArV2`    |            yes           |         **no**        |
-| `AccurateRipDiscId`              |            yes           |          yes          |
-| `buildAccurateRipUrl`            |            yes           |          yes          |
-| `parseAccurateRipResponse`       |            yes           |          yes          |
-| `AccurateRipClient`              |            yes           |          yes          |
+| Surface                                    | Dart VM / Flutter native | Flutter Web / dart2js |
+| ------------------------------------------ | :----------------------: | :-------------------: |
+| `computeArV1` / `computeArV2`              |            yes           |         **no**        |
+| `computeArV1FromWav` / `computeArV2FromWav`|            yes           |         **no**        |
+| `extractPcmFromWav`                        |            yes           |          yes          |
+| `AccurateRipDiscId`                        |            yes           |          yes          |
+| `buildAccurateRipUrl`                      |            yes           |          yes          |
+| `parseAccurateRipResponse`                 |            yes           |          yes          |
+| `AccurateRipClient`                        |            yes           |          yes          |
 
-> The CRC functions rely on native 64-bit integer arithmetic that
-> overflows silently on Dart-to-JavaScript targets. Use them only
-> on the Dart VM or Flutter native (Android, iOS, macOS, Windows,
-> Linux). The disc-ID, URL builder, response parser, and client are
-> web-safe.
+> The CRC functions (including the `FromWav` wrappers) rely on
+> native 64-bit integer arithmetic that overflows silently on
+> Dart-to-JavaScript targets. Use them only on the Dart VM or
+> Flutter native (Android, iOS, macOS, Windows, Linux). The
+> disc-ID, URL builder, response parser, client, and
+> `extractPcmFromWav` are web-safe.
 
 ## Quick start
 
