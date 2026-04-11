@@ -56,3 +56,4 @@ export 'src/accuraterip_disc_id.dart';
 export 'src/accuraterip_models.dart';
 export 'src/accuraterip_protocol.dart';
 export 'src/io/accuraterip_client.dart';
+export 'src/wav.dart';

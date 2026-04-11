@@ -1,0 +1,14 @@
+# Dart tool output and pub metadata
+.dart_tool/
+.packages
+pubspec.lock
+build/
+
+# Dartdoc output
+doc/api/
+
+# Editor / OS metadata
+.idea/
+.vscode/
+.DS_Store
+.env*

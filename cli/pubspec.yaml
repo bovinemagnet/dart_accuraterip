@@ -1,0 +1,30 @@
+name: dart_accuraterip_cli
+description: >
+  Command-line interface for dart_accuraterip. Computes AccurateRip
+  v1/v2 CRCs, disc IDs, and verifies ripped WAV files against the
+  AccurateRip database.
+version: 0.0.1
+repository: https://github.com/bovinemagnet/dart_accuraterip
+homepage: https://github.com/bovinemagnet/dart_accuraterip
+issue_tracker: https://github.com/bovinemagnet/dart_accuraterip/issues
+
+# Unpublished while `dart_accuraterip` itself is unpublished and
+# this package depends on it via a `path:` entry below. When the
+# library ships to pub.dev, swap the path dep for a version dep
+# (`dart_accuraterip: ^0.0.1`) and remove this `publish_to: none`
+# line.
+publish_to: none
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+executables:
+  dart-accuraterip: dart_accuraterip
+
+dependencies:
+  dart_accuraterip:
+    path: ../
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.24.0

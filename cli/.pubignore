@@ -1,0 +1,17 @@
+# Files that should NOT be included in the pub.dev package tarball
+# for dart_accuraterip_cli.
+#
+# Pub uses this file *instead of* .gitignore when present, so every
+# pattern that matters must be listed here explicitly.
+# See https://dart.dev/tools/pub/publishing#pubignore
+
+# --- Build output and caches ---
+.dart_tool/
+build/
+doc/api/
+
+# --- Editor / OS metadata ---
+.idea/
+.vscode/
+.DS_Store
+.env*

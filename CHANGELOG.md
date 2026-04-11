@@ -30,3 +30,9 @@
   fetcher callback, so the package carries **zero runtime
   dependencies** and works with any HTTP client (`package:http`,
   `package:dio`, a Flutter `Client`, or a custom stub).
+- WAV input helpers: `extractPcmFromWav` walks a RIFF/WAVE byte
+  buffer (tolerant of extra `LIST`/`INFO`/`fact` chunks and
+  truncated trailing data) and returns the raw PCM payload, plus
+  `computeArV1FromWav` and `computeArV2FromWav` one-liner wrappers
+  that chain the extractor with the CRC functions. Throws
+  `FormatException` on malformed input.

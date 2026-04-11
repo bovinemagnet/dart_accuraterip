@@ -65,6 +65,28 @@ final v1 = computeArV1(pcm, isFirstTrack: true);
 final v2 = computeArV2(pcm, isFirstTrack: true);
 ```
 
+### Compute CRCs directly from a WAV file
+
+If your rip is in WAV, you can skip the PCM-extraction step
+entirely — the library walks the RIFF chunks for you:
+
+```dart
+import 'dart:io';
+import 'package:dart_accuraterip/dart_accuraterip.dart';
+
+final wavBytes = File('track01.wav').readAsBytesSync();
+
+final v1 = computeArV1FromWav(wavBytes, isFirstTrack: true);
+final v2 = computeArV2FromWav(wavBytes, isFirstTrack: true);
+```
+
+`extractPcmFromWav` is also exposed directly for the "I just want
+the PCM" case. Both the extractor and the WAV wrappers throw a
+`FormatException` if the input is not a valid RIFF/WAVE stream.
+The wrappers inherit the same native-`int` platform caveat as the
+raw `computeArV1` / `computeArV2` functions (Dart VM / Flutter
+native only).
+
 ### Compute a disc ID from track sample counts
 
 ```dart

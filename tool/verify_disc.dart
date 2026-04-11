@@ -1,4 +1,5 @@
-// End-to-end AccurateRip self-check tool.
+// End-to-end AccurateRip self-check tool — FLAC-capable predecessor
+// to the WAV-only `cli/` sub-package.
 //
 // This is NOT part of the published package (see `.pubignore`).
 // It is a developer script for verifying that `dart_accuraterip`'s
@@ -8,6 +9,15 @@
 //       and
 //   (b) an independent reference implementation
 //       (`accuraterip-checksum`, GPL-3.0, on PATH) when available.
+//
+// If your rip is in WAV, prefer the `cli/` sub-package:
+//
+//   dart run cli/bin/dart_accuraterip.dart verify track01.wav …
+//
+// This tool exists because the CLI does not yet ship FLAC support
+// (which requires either an external `flac` CLI or a pure-Dart
+// decoder). When FLAC support lands in the CLI, this script can
+// be deleted.
 //
 // Usage:
 //
@@ -276,39 +286,11 @@ Future<Uint8List> _decodeFlacToPcm(String flacPath) async {
     throw StateError('flac decode failed for $flacPath: $stderrStr');
   }
   final wav = Uint8List.fromList(result.stdout as List<int>);
-  return _extractWavData(wav);
-}
-
-/// Strip the WAV header and return the raw PCM `data` chunk payload.
-///
-/// Handles WAV files that have extra (e.g. LIST/INFO) chunks between
-/// the fmt and data chunks — the bare "skip the first 44 bytes"
-/// shortcut is not reliable enough.
-Uint8List _extractWavData(Uint8List wav) {
-  if (wav.length < 12 ||
-      utf8.decode(wav.sublist(0, 4)) != 'RIFF' ||
-      utf8.decode(wav.sublist(8, 12)) != 'WAVE') {
-    throw StateError('not a RIFF/WAVE file');
-  }
-
-  var pos = 12;
-  while (pos + 8 <= wav.length) {
-    final id = utf8.decode(wav.sublist(pos, pos + 4));
-    final size =
-        ByteData.sublistView(wav, pos + 4, pos + 8).getUint32(0, Endian.little);
-    final payloadStart = pos + 8;
-    final payloadEnd = payloadStart + size;
-    if (id == 'data') {
-      if (payloadEnd > wav.length) {
-        // Tolerate a truncated trailing data chunk — take what we have.
-        return Uint8List.sublistView(wav, payloadStart);
-      }
-      return Uint8List.sublistView(wav, payloadStart, payloadEnd);
-    }
-    // Chunks are padded to even size.
-    pos = payloadEnd + (size & 1);
-  }
-  throw StateError('no "data" chunk found in WAV stream');
+  // Delegates to the library's public helper — previously this file
+  // carried its own private copy, but since 0.0.1 extractPcmFromWav
+  // is part of package:dart_accuraterip and we use it here to avoid
+  // drifting two WAV parsers apart.
+  return extractPcmFromWav(wav);
 }
 
 Future<_Crcs?> _runExternalChecker(

@@ -45,6 +45,14 @@ All types and functions are re-exported from the single entry point
 - `typedef AccurateRipFetcher = Future<Uint8List> Function(Uri url)`
 - `class AccurateRipClient` with `const AccurateRipClient({required AccurateRipFetcher fetch})`
   and `Future<AccurateRipDiscResult?> queryDisc(AccurateRipDiscId id)`
+- `Uint8List extractPcmFromWav(Uint8List wavBytes)` — walks a
+  RIFF/WAVE byte buffer, returns the `data` chunk payload,
+  tolerates extra chunks and truncated data. Throws
+  `FormatException` on malformed input. Ported from the private
+  `_extractWavData` in `tool/verify_disc.dart` during 0.0.1.
+- `int computeArV1FromWav(Uint8List wavBytes, {bool isFirstTrack, bool isLastTrack})`
+  and `int computeArV2FromWav(...)` — one-liner wrappers chaining
+  `extractPcmFromWav` with the CRC functions.
 
 Renaming or changing the signature of any of these is a breaking
 change. Bump the `version:` field in `pubspec.yaml` (currently
