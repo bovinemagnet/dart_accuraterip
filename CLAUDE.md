@@ -103,14 +103,22 @@ cddbDiscId : u32 LE
   HTTP client via `AccurateRipFetcher`. Do not add `dio`, `http`,
   or any other transport library as a runtime dep without a very
   good reason.
-- **CRC uses native 64-bit integer arithmetic** and therefore
-  silently produces wrong results when compiled to JavaScript
-  (`dart2js`, Flutter Web, WASM). The README documents this
-  explicitly. Do not add a runtime check inside the CRC hot loop —
-  it would slow the checksum on every track. If this restriction
-  becomes a blocker for a consumer, introduce a separate
-  web-safe implementation using `package:fixnum` under a different
-  function name rather than slowing the native path.
+- **CRC has two implementations selected by conditional export.**
+  `lib/src/accuraterip_crc_io.dart` is the native 64-bit multiply
+  path used on the Dart VM and Flutter native. `lib/src/accuraterip_crc_web.dart`
+  is the split 16-bit multiply path used on dart2js / dart2wasm,
+  where JavaScript's 53-bit integer precision would otherwise
+  silently drop the low bit of the 32×22-bit product. Both files
+  export exactly the same public API (`computeArV1`, `computeArV2`,
+  `accurateRipSkipFrames`). The conditional export lives in
+  `lib/dart_accuraterip.dart` and uses `dart.library.js_interop`
+  as the discriminator. The bit-for-bit equivalence of the two
+  paths is pinned by `test/accuraterip_crc_differential_test.dart`,
+  which runs both on the VM against 350+ random buffers plus the
+  hand-pinned overflow fixture. Do not "optimise" the native path
+  in a way that changes its output — the differential test is
+  load-bearing. `lib/src/wav.dart` uses the same conditional import
+  to pick the right CRC implementation for its `FromWav` wrappers.
 - **`parseAccurateRipResponse` is tolerant.** A truncated trailing
   chunk should not cause an exception — the parser must return the
   entries it could decode before the short read. There is a test
@@ -202,5 +210,9 @@ GPL-3.0, matching the author's `dart_metaflac` package.
 - Add a `benchmark/` directory showing CRC throughput on Dart VM.
 - Add a minimal `.github/workflows/ci.yaml` running `dart analyze`,
   `dart format --set-exit-if-changed`, and `dart test`.
-- Consider a web-safe CRC implementation built on `package:fixnum`
-  exposed under a separate entry point.
+- ~~Consider a web-safe CRC implementation built on `package:fixnum`
+  exposed under a separate entry point.~~ **Done** in 0.0.3, but
+  without `package:fixnum` — a pure-Dart split 16-bit multiply in
+  `lib/src/accuraterip_crc_web.dart` keeps the zero-runtime-deps
+  invariant intact. Selected via conditional export, not a
+  separate entry point. See the Design-invariants note above.

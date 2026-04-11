@@ -24,7 +24,10 @@ library;
 
 import 'dart:typed_data';
 
-import 'accuraterip_crc.dart';
+// Pick the same CRC implementation the public barrel does, so the
+// FromWav wrappers are correct on both VM and web.
+import 'accuraterip_crc_io.dart'
+    if (dart.library.js_interop) 'accuraterip_crc_web.dart';
 
 /// Strip the WAV header from [wavBytes] and return the raw PCM
 /// payload (the bytes inside the first `data` chunk).

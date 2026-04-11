@@ -1,5 +1,47 @@
 # Changelog
 
+## 0.0.3
+
+- **Web-safe CRC implementation.** `computeArV1`, `computeArV2`,
+  and their `FromWav` wrappers now produce correct results under
+  `dart2js` and `dart2wasm`. Previously the inner loop's 32×22-bit
+  multiply could produce a product up to ~54 bits wide, which is
+  silently truncated by JavaScript's 53-bit integer precision and
+  caused wrong CRCs on the web.
+- The fix is a pure-Dart split 16-bit multiply. `sample` and
+  `multiplier` are each decomposed into two 16-bit halves; four
+  narrow multiplies each yield at most a 32-bit product; the full
+  64-bit product is reassembled as a `(low32, high32)` record
+  where every intermediate value stays safely under 2⁵³.
+- Selected at compile time via a conditional export in
+  `lib/dart_accuraterip.dart`:
+  ```dart
+  export 'src/accuraterip_crc_io.dart'
+      if (dart.library.js_interop) 'src/accuraterip_crc_web.dart';
+  ```
+  Dart VM / Flutter native users see zero behaviour or performance
+  change — they continue to get the single-multiply native path.
+  Web users transparently get the split-multiply path, which is
+  ~2–3× slower in pure arithmetic but imperceptible overall because
+  the CRC loop is memory-bandwidth bound.
+- New differential test in
+  `test/accuraterip_crc_differential_test.dart` runs both
+  implementations side-by-side on the VM and asserts bit-identical
+  output across 200 random PCM buffers (varying length from 1 to
+  200,000 samples), the 32-bit overflow boundary fixture, and all
+  first/last-track skip permutations over another 150 random
+  buffers.
+- The full `accuraterip_crc_test.dart` and `accuraterip_wav_test.dart`
+  suites now run and pass under `dart test -p chrome`, exercising
+  the conditional export for real.
+- README and library-level dartdoc platform-support tables
+  updated — every surface now reads `yes / yes`. The native-only
+  caveat paragraph is replaced by a short explanation of the
+  two-implementation strategy.
+- No public API changes. 0.0.2 consumers can upgrade freely;
+  anyone who was previously working around the web limitation can
+  drop their workaround.
+
 ## 0.0.2
 
 - Fix pub.dev score deductions flagged against 0.0.1:

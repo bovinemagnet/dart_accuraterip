@@ -8,21 +8,25 @@
 ///
 /// ## Platform support
 ///
+/// Every surface runs on every Dart platform — VM, Flutter
+/// native, dart2js, and dart2wasm.
+///
 /// | Surface                                        | VM / Flutter native | Web |
 /// | ---------------------------------------------- | :-----------------: | :-: |
-/// | [computeArV1] / [computeArV2]                  |         yes         |  no |
-/// | [computeArV1FromWav] / [computeArV2FromWav]    |         yes         |  no |
+/// | [computeArV1] / [computeArV2]                  |         yes         | yes |
+/// | [computeArV1FromWav] / [computeArV2FromWav]    |         yes         | yes |
 /// | [extractPcmFromWav]                            |         yes         | yes |
 /// | [AccurateRipDiscId]                            |         yes         | yes |
 /// | [buildAccurateRipUrl]                          |         yes         | yes |
 /// | [parseAccurateRipResponse]                     |         yes         | yes |
 /// | [AccurateRipClient]                            |         yes         | yes |
 ///
-/// CRC computation (including the `FromWav` wrappers) relies on
-/// native 64-bit integer arithmetic that overflows silently on
-/// Dart-to-JavaScript targets. The WAV byte-walker
-/// [extractPcmFromWav] itself is web-safe — combine it with your
-/// own web-safe CRC implementation if you need one.
+/// The CRC functions use a conditional export to pick between
+/// two equivalent implementations: a single native 64-bit
+/// multiply per sample on the Dart VM, and a split 16-bit
+/// multiply that stays under 2⁵³ on dart2js / dart2wasm. Both
+/// produce bit-identical output (verified against 350+ random
+/// buffers in `test/accuraterip_crc_differential_test.dart`).
 ///
 /// ## Quick start
 ///
@@ -73,7 +77,17 @@
 /// Since: 0.0.1
 library;
 
-export 'src/accuraterip_crc.dart';
+// CRC implementation is selected at compile time:
+//   - Dart VM / Flutter native: `accuraterip_crc_io.dart` — single
+//     native 64-bit multiply per sample.
+//   - dart2js / dart2wasm: `accuraterip_crc_web.dart` — split
+//     16-bit multiply, ~2–3× slower but correct under JavaScript's
+//     53-bit int precision.
+// Both files expose the same public API (`computeArV1`,
+// `computeArV2`, `accurateRipSkipFrames`) so consumers never see
+// the dispatch.
+export 'src/accuraterip_crc_io.dart'
+    if (dart.library.js_interop) 'src/accuraterip_crc_web.dart';
 export 'src/accuraterip_disc_id.dart';
 export 'src/accuraterip_models.dart';
 export 'src/accuraterip_protocol.dart';

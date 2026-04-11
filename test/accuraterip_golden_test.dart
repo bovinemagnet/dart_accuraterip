@@ -10,6 +10,14 @@
 // `test/test_common_accurip.py` (the `TestAccurateRipResponse`
 // class) plus direct decoding of the raw bytes, cross-checked
 // against CUETools.NET's entry-layout struct.
+//
+// VM-only because the fixture lives on disk and is loaded via
+// `dart:io`'s `File`. The parser logic itself (which is what
+// this test exercises) is web-safe — the CRC path is not
+// touched here; see `accuraterip_crc_test.dart` for that.
+
+@TestOn('vm')
+library;
 
 import 'dart:io';
 

@@ -44,22 +44,30 @@ dependencies:
 
 ## Platform support
 
+Every surface runs on every Dart platform:
+
 | Surface                                    | Dart VM / Flutter native | Flutter Web / dart2js |
 | ------------------------------------------ | :----------------------: | :-------------------: |
-| `computeArV1` / `computeArV2`              |            yes           |         **no**        |
-| `computeArV1FromWav` / `computeArV2FromWav`|            yes           |         **no**        |
+| `computeArV1` / `computeArV2`              |            yes           |          yes          |
+| `computeArV1FromWav` / `computeArV2FromWav`|            yes           |          yes          |
 | `extractPcmFromWav`                        |            yes           |          yes          |
 | `AccurateRipDiscId`                        |            yes           |          yes          |
 | `buildAccurateRipUrl`                      |            yes           |          yes          |
 | `parseAccurateRipResponse`                 |            yes           |          yes          |
 | `AccurateRipClient`                        |            yes           |          yes          |
 
-> The CRC functions (including the `FromWav` wrappers) rely on
-> native 64-bit integer arithmetic that overflows silently on
-> Dart-to-JavaScript targets. Use them only on the Dart VM or
-> Flutter native (Android, iOS, macOS, Windows, Linux). The
-> disc-ID, URL builder, response parser, client, and
-> `extractPcmFromWav` are web-safe.
+The CRC functions switch implementation at compile time via a
+conditional export. On the Dart VM / Flutter native, they use a
+single native 64-bit multiply per sample. Under `dart2js` /
+`dart2wasm` — where `int` is a JavaScript `double` with only 53
+bits of integer precision — they use a split 16-bit multiply
+that keeps every intermediate value safely under 2⁵³. Both
+implementations produce bit-identical output; a differential
+test in `test/accuraterip_crc_differential_test.dart` pins this
+against 350+ random buffers plus the 32-bit overflow boundary.
+The web path is ~2–3× slower than native, which in practice is
+imperceptible because the CRC loop is already memory-bandwidth
+bound.
 
 ## Quick start
 
