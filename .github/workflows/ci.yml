@@ -23,6 +23,9 @@ jobs:
 
       - name: Pub get (root)
         run: dart pub get
+      - name: Pub get (cli)
+        working-directory: cli
+        run: dart pub get
       - name: Check formatting (root)
         run: dart format --output=none --set-exit-if-changed .
       - name: Analyse (root)
@@ -30,9 +33,6 @@ jobs:
       - name: Test (root)
         run: dart test
 
-      - name: Pub get (cli)
-        working-directory: cli
-        run: dart pub get
       - name: Analyse (cli)
         working-directory: cli
         run: dart analyze --fatal-warnings
