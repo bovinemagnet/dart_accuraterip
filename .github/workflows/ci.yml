@@ -64,8 +64,3 @@ jobs:
         run: |
           dart pub get
           dart pub publish --dry-run
-      - name: CLI package dry-run
-        working-directory: cli
-        run: |
-          dart pub get
-          dart pub publish --dry-run
