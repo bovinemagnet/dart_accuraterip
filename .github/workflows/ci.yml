@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / ${{ matrix.sdk }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        sdk: [stable, beta]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: ${{ matrix.sdk }}
+
+      - name: Pub get (root)
+        run: dart pub get
+      - name: Check formatting (root)
+        run: dart format --output=none --set-exit-if-changed .
+      - name: Analyse (root)
+        run: dart analyze --fatal-warnings
+      - name: Test (root)
+        run: dart test
+
+      - name: Pub get (cli)
+        working-directory: cli
+        run: dart pub get
+      - name: Analyse (cli)
+        working-directory: cli
+        run: dart analyze --fatal-warnings
+      - name: Test (cli)
+        working-directory: cli
+        run: dart test
+
+  docs:
+    name: Dartdoc
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - run: dart pub get
+      - name: Generate dartdoc (dry run)
+        run: dart doc --dry-run
+
+  publish_dry_run:
+    name: pub publish --dry-run
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: stable
+      - name: Root package dry-run
+        run: |
+          dart pub get
+          dart pub publish --dry-run
+      - name: CLI package dry-run
+        working-directory: cli
+        run: |
+          dart pub get
+          dart pub publish --dry-run
