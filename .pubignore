@@ -29,3 +29,6 @@ tool/
 # cli with tool/publish_cli.sh, which exports cli/ to a clean
 # directory outside the repo first.
 cli/
+
+# --- Benchmarks (developer-only, not part of the library) ---
+benchmark/
