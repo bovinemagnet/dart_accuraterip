@@ -32,7 +32,7 @@ List<int> _uint32LE(int value) => [
 
 void main() {
   group('buildAccurateRipUrl', () {
-    test('produces the three-component hex path from discId1', () {
+    test('produces the three-nibble hex path from discId1', () {
       const id = AccurateRipDiscId(
         discId1: 0x0A1B2C3D,
         discId2: 0x11223344,
@@ -44,10 +44,14 @@ void main() {
 
       expect(uri.scheme, equals('http'));
       expect(uri.host, equals('www.accuraterip.com'));
+      // The three directory levels are the low three nibbles of
+      // discId1 as single hex digits (id1 & 0xF, (id1 >> 4) & 0xF,
+      // (id1 >> 8) & 0xF), matching whipper and CUETools. For
+      // 0x...C3D that is d, 3, c.
       expect(
         uri.path,
         equals(
-          '/accuraterip/d/3d/c3d/dBAR-012-0a1b2c3d-11223344-55667788.bin',
+          '/accuraterip/d/3/c/dBAR-012-0a1b2c3d-11223344-55667788.bin',
         ),
       );
     });
@@ -63,7 +67,27 @@ void main() {
       expect(
         buildAccurateRipUrl(id).path,
         equals(
-          '/accuraterip/1/01/001/dBAR-005-00000001-00000002-00000003.bin',
+          '/accuraterip/1/0/0/dBAR-005-00000001-00000002-00000003.bin',
+        ),
+      );
+    });
+
+    test('known disc URL confirmed against the live database', () {
+      // Faithless — No Roots [UK]. This exact URL returned HTTP 200
+      // with a 5-pressing response; the substring-style path
+      // (/5/25/725/) returned 404.
+      const id = AccurateRipDiscId(
+        discId1: 0x0019e725,
+        discId2: 0x0132e444,
+        cddbDiscId: 0xad0ca10f,
+        trackCount: 15,
+      );
+
+      expect(
+        buildAccurateRipUrl(id).toString(),
+        equals(
+          'http://www.accuraterip.com/accuraterip/5/2/7/'
+          'dBAR-015-0019e725-0132e444-ad0ca10f.bin',
         ),
       );
     });

@@ -40,17 +40,21 @@ void main() {
       expect(v2, equals(0xFFFFFFFE));
     });
 
-    test('first-track skip omits first 2940 frames', () {
+    test('first-track skip omits the first 2939 frames (5*588 - 1)', () {
       final values = List.generate(2945, (i) => i + 1);
       final pcm = buildPcmFromUint32s(values);
 
       final noSkip = computeArV1(pcm);
       final withSkip = computeArV1(pcm, isFirstTrack: true);
 
-      // Only samples[2940..2944] = [2941..2945] contribute, with
-      // multipliers 1..5:
-      // 2941 + 5884 + 8829 + 11776 + 14725 = 44155.
-      expect(withSkip, equals(44155));
+      // The reference implementation (whipper accuraterip-checksum.c)
+      // includes 1-based positions >= 5*588 = 2940, i.e. it skips only
+      // the first 2939 samples, and the multiplier is the absolute
+      // position — NOT restarted at the window start. Here sample
+      // value k sits at 1-based position k, so each included sample
+      // contributes k * k:
+      // Σ k² for k in 2940..2945 = 51_949_855.
+      expect(withSkip, equals(51949855));
       expect(noSkip, isNot(equals(withSkip)));
     });
 
@@ -70,22 +74,25 @@ void main() {
     });
 
     test('single-track disc sets both skip flags and checksums the middle', () {
-      // 6000 samples with both flags set: window is [2940..3059],
-      // contributing samples (2941..3060) with multipliers (1..120).
-      // Σ (2940 + k) * k for k in 1..120
-      //   = 2940 * (120*121/2) + (120*121*241/6)
-      //   = 2940 * 7260 + 583220
-      //   = 21_344_400 + 583_220 = 21_927_620.
+      // 6000 samples with both flags set. The included window is
+      // 1-based positions 2940..3060 (first-track skip drops
+      // positions 1..2939; last-track skip drops the final 2940,
+      // i.e. positions 3061..6000). The multiplier is the absolute
+      // position, and sample value k sits at position k, so each
+      // included sample contributes k * k:
+      // Σ k² for k in 2940..3060
+      //   = 3060·3061·6121/6 − 2939·2940·5879/6
+      //   = 9_555_554_310 − 8_466_406_690 = 1_089_147_620.
       final values = List.generate(6000, (i) => i + 1);
       final pcm = buildPcmFromUint32s(values);
 
       expect(
         computeArV1(pcm, isFirstTrack: true, isLastTrack: true),
-        equals(21927620),
+        equals(1089147620),
       );
       expect(
         computeArV2(pcm, isFirstTrack: true, isLastTrack: true),
-        equals(21927620),
+        equals(1089147620),
       );
     });
 

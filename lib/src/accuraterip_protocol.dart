@@ -17,10 +17,13 @@ import 'accuraterip_models.dart';
 ///
 /// The URL has the shape
 /// `http://www.accuraterip.com/accuraterip/<a>/<b>/<c>/dBAR-<nnn>-<d1>-<d2>-<cddb>.bin`
-/// where `<a>`, `<b>`, `<c>` are the last 1, 2, and 3 hexadecimal
-/// digits of [AccurateRipDiscId.discId1], `<nnn>` is the zero-padded
-/// track count, and `<d1>`, `<d2>`, `<cddb>` are the 8-digit
-/// hexadecimal representations of the three disc ID fields.
+/// where `<a>`, `<b>`, `<c>` are the low three nibbles of
+/// [AccurateRipDiscId.discId1] as single hexadecimal digits
+/// (`id1 & 0xF`, `(id1 >> 4) & 0xF`, `(id1 >> 8) & 0xF`), `<nnn>`
+/// is the zero-padded track count, and `<d1>`, `<d2>`, `<cddb>`
+/// are the 8-digit hexadecimal representations of the three disc
+/// ID fields. This matches the whipper and CUETools reference
+/// implementations and was confirmed against the live database.
 ///
 /// The AccurateRip database is served over plain HTTP; this builder
 /// does not force HTTPS. Consumers concerned with transport
@@ -32,8 +35,8 @@ Uri buildAccurateRipUrl(AccurateRipDiscId id) {
   final tc = id.trackCount.toString().padLeft(3, '0');
 
   final a = hex1[7];
-  final b = hex1.substring(6, 8);
-  final c = hex1.substring(5, 8);
+  final b = hex1[6];
+  final c = hex1[5];
 
   return Uri.parse(
     'http://www.accuraterip.com/accuraterip/$a/$b/$c/'

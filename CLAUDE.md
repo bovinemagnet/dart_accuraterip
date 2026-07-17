@@ -9,7 +9,9 @@ Internal notes for agentic coding assistants working on this package.
 `dart_accuraterip` is a pure-Dart library providing:
 
 1. **AccurateRip v1 / v2 CRC computation** over raw PCM
-   (`lib/src/accuraterip_crc.dart`).
+   (`lib/src/accuraterip_crc_io.dart` on the VM,
+   `lib/src/accuraterip_crc_web.dart` on dart2js/dart2wasm —
+   see Design invariants).
 2. **Disc-ID computation** from per-track sample counts
    (`lib/src/accuraterip_disc_id.dart`).
 3. **Immutable result models** for parsed database responses
@@ -18,6 +20,12 @@ Internal notes for agentic coding assistants working on this package.
    (`lib/src/accuraterip_protocol.dart`).
 5. **HTTP client convenience wrapper** that takes an injected fetcher
    (`lib/src/io/accuraterip_client.dart`).
+6. **WAV input helpers** — RIFF walker and `FromWav` CRC wrappers
+   (`lib/src/wav.dart`).
+
+The repository also contains `cli/`, a separate unpublished package
+(`dart_accuraterip_cli`) providing the `dart-accuraterip` command-line
+tool — see the "CLI sub-package" section below.
 
 The package was extracted from MyMediaScanner to replace duplicated
 CRC/client code and give the wider Dart CD-ripping community a
@@ -56,7 +64,7 @@ All types and functions are re-exported from the single entry point
 
 Renaming or changing the signature of any of these is a breaking
 change. Bump the `version:` field in `pubspec.yaml` (currently
-`0.0.1`) to `0.1.0` and add an entry to `CHANGELOG.md`.
+`0.0.4`) and add an entry to `CHANGELOG.md`.
 
 ## Wire-format notes
 
@@ -87,6 +95,29 @@ cddbDiscId : u32 LE
   wrong. It is `frame450Crc` — a CRC over the first 450 stereo
   frames, used by CUETools for drive-offset verification. It is
   often zero for older pressings. Do not rename it back.
+- **CRC skip window is asymmetric and the multiplier is absolute.**
+  The reference loop (whipper `src/accuraterip-checksum.c`) includes
+  1-based sample positions `[2940 .. total − 2940]`: the first track
+  skips only the first **2939** samples (5×588 − 1), the last track
+  skips the final **2940**, and the multiplier is always the
+  sample's absolute position within the track — skipped samples
+  still advance it. An earlier iteration of this package restarted
+  the multiplier at 1 after the skip and skipped 2940 leading
+  samples; it produced wrong first-track CRCs (middle/last tracks
+  were coincidentally right because their window starts at
+  position 1). Fixed in 0.0.4 and pinned against a real EAC log +
+  live database response. Do not "simplify" the `i + 1` multiplier
+  back to a window-relative counter.
+- **AccurateRip disc IDs use raw LBA offsets — no +150.** Track 1's
+  offset is 0; `discId2` counts a zero offset as 1. Only the CDDB
+  disc ID applies the 150-sector (2-second) lead-in bias. A
+  +150-biased ID looks plausible but 404s on the live database for
+  discs it demonstrably holds. Fixed in 0.0.4.
+- **The lookup URL shards by the low three NIBBLES of discId1** as
+  single hex digits: `/{id1 & 0xF}/{(id1 >> 4) & 0xF}/{(id1 >> 8) & 0xF}/`,
+  e.g. `/5/2/7/` for `0x0019e725` — not cumulative substrings like
+  `/5/25/725/`. Fixed in 0.0.4; the live-confirmed URL is pinned in
+  `test/accuraterip_protocol_test.dart`.
 - **Reference implementations consulted:**
   [whipper](https://github.com/whipper-team/whipper) (Python,
   GPL-3.0) and
@@ -134,28 +165,76 @@ cddbDiscId : u32 LE
 
 ```
 lib/
-  dart_accuraterip.dart              # single public export
+  dart_accuraterip.dart              # single public export (conditional CRC export)
   src/
-    accuraterip_crc.dart             # v1 / v2 CRC
+    accuraterip_crc_io.dart          # v1 / v2 CRC — native 64-bit multiply (VM)
+    accuraterip_crc_web.dart         # v1 / v2 CRC — split 16-bit multiply (web)
     accuraterip_disc_id.dart         # AccurateRipDiscId
     accuraterip_models.dart          # result models
     accuraterip_protocol.dart        # url builder, response parser
+    wav.dart                         # extractPcmFromWav + FromWav wrappers
     io/
       accuraterip_client.dart        # AccurateRipClient (fetcher-based)
 test/
-  accuraterip_crc_test.dart          # synthetic PCM, 7 tests
+  accuraterip_crc_test.dart          # synthetic PCM, pinned arithmetic
+  accuraterip_crc_differential_test.dart # io vs web bit-equivalence (load-bearing)
   accuraterip_disc_id_test.dart      # known-disc sample counts
   accuraterip_protocol_test.dart     # URL shape + hand-built binary fixtures
   accuraterip_client_test.dart       # stubbed fetcher
+  accuraterip_golden_test.dart       # real whipper response fixture
+  accuraterip_wav_test.dart          # RIFF walker edge cases
+  fixtures/                          # golden binary response (from whipper)
 example/
   compute_crc.dart
   query_disc.dart                    # uses package:http as the fetcher
+cli/                                 # separate package, see below
+tool/
+  verify_disc.dart                   # developer-only, excluded via .pubignore
+.github/workflows/
+  ci.yml                             # analyse/format/test matrix + docs + publish dry-run
+  release.yml                        # compiles CLI binaries on v* tags
 ```
 
 Keep the `src/` layout flat. The only subdirectory is `io/`, which
 signals "this is the HTTP-ish layer" even though the code is still
 pure Dart. Do not split `accuraterip_models.dart` into three files
 unless one of them grows beyond a couple of screens.
+
+## CLI sub-package (`cli/`)
+
+`cli/` is a second, independent package (`dart_accuraterip_cli`)
+providing the `dart-accuraterip` executable with four subcommands:
+`crc`, `disc-id`, `verify`, `query`. Key points:
+
+- **Unpublished** (`publish_to: none`) while it depends on the
+  library via `path: ../`. When the library ships to pub.dev, swap
+  to a version dep and remove the `publish_to` line.
+- **Zero dependencies beyond the library** — no `package:args`, no
+  `package:http`. Argument parsing is hand-rolled
+  (`cli/lib/src/args.dart`) and HTTP uses `dart:io`'s `HttpClient`
+  (`cli/lib/src/io_fetcher.dart`). Keep it that way.
+- The CLI version constant in `cli/bin/dart_accuraterip.dart`
+  (`cliVersion`) is kept in sync with `cli/pubspec.yaml` by hand —
+  update both together.
+- Exit codes: `64` (EX_USAGE) for usage errors / `FormatException`;
+  `verify` exits `1` on any CRC mismatch so it can gate a pipeline.
+- Commands live one-per-file under `cli/lib/src/commands/`; each
+  exports a `run<Name>(List<String> argv, IOSink out)` function
+  that returns the exit code, which is what the tests drive.
+- It has its own `dart pub get` / `dart analyze` / `dart test`
+  cycle — CI runs both packages.
+
+## Continuous integration
+
+`.github/workflows/ci.yml` runs on pushes/PRs to `main`: a
+3-OS × {stable, beta} SDK matrix doing format check, analyse
+(`--fatal-warnings`) and tests for **both** the root and `cli/`
+packages, plus a `dart doc --dry-run` job and a
+`dart pub publish --dry-run` job (root package only — the cli is
+`publish_to: none` so it is deliberately excluded from the dry-run).
+`.github/workflows/release.yml` compiles the CLI to native binaries
+(linux-x64, macos-arm64, windows-x64) on `v*` tags and attaches
+them to the GitHub release.
 
 ## Development commands
 
@@ -166,8 +245,18 @@ dart format --output=none --set-exit-if-changed .      # must be clean
 dart test                                             # must pass
 dart test test/accuraterip_crc_test.dart              # single test file
 dart test test/accuraterip_crc_test.dart -n 'v1 vs v2 divergence' # single test by name
+dart test -p chrome                                   # exercises the web CRC path for real
 dart run example/compute_crc.dart
 dart pub publish --dry-run                            # must report 0 warnings
+```
+
+The `cli/` package has its own cycle (run from `cli/`):
+
+```sh
+dart pub get
+dart analyze
+dart test
+dart run bin/dart_accuraterip.dart --help
 ```
 
 ## Testing
@@ -181,11 +270,14 @@ dart pub publish --dry-run                            # must report 0 warnings
   the offset math, re-derive the expected values in a comment —
   do not blindly update the test numbers.
 - **Protocol tests** build response bytes by hand via
-  `buildChunk()` helpers. There is no real AccurateRip captured
-  response in `test/fixtures/` yet; adding one is a **priority
-  follow-up** that would let us golden-test the parser against
-  production data.
+  `buildChunk()` helpers. In addition,
+  `test/accuraterip_golden_test.dart` pins the parser against a
+  real captured response under `test/fixtures/` (redistributed
+  from whipper).
 - **Client tests** stub the fetcher with plain closures.
+- **CLI tests** (`cli/test/`) drive the `run<Name>()` command
+  functions directly with an injected buffer-backed `IOSink`,
+  asserting on output text and exit codes — no subprocess forking.
 
 ## British English
 
@@ -208,8 +300,13 @@ GPL-3.0, matching the author's `dart_metaflac` package.
   to the `flac` CLI for PCM decoding plus optionally to
   `accuraterip-checksum` for a third-party cross-check.
 - Add a `benchmark/` directory showing CRC throughput on Dart VM.
-- Add a minimal `.github/workflows/ci.yaml` running `dart analyze`,
-  `dart format --set-exit-if-changed`, and `dart test`.
+- ~~Add a minimal `.github/workflows/ci.yaml` running `dart analyze`,
+  `dart format --set-exit-if-changed`, and `dart test`.~~ **Done** —
+  see `.github/workflows/ci.yml` and the Continuous-integration
+  section above.
+- FLAC support in the CLI (currently WAV only — see `cli/README.md`).
+- Publish `dart_accuraterip` to pub.dev, then flip the cli's
+  `path:` dependency to a version dependency and publish it too.
 - ~~Consider a web-safe CRC implementation built on `package:fixnum`
   exposed under a separate entry point.~~ **Done** in 0.0.3, but
   without `package:fixnum` — a pure-Dart split 16-bit multiply in

@@ -1,5 +1,42 @@
 # Changelog
 
+## 0.0.4
+
+Three correctness fixes, all discovered by end-to-end verification
+of a real EAC rip against the live AccurateRip database and pinned
+by new regression tests. **If you used 0.0.3 or earlier for
+database lookups or first-track CRCs, upgrade — those results were
+wrong.**
+
+- **First-track CRC skip fixed.** `computeArV1` / `computeArV2`
+  (and the `FromWav` wrappers) previously restarted the multiplier
+  at 1 after the first-track skip and skipped 2940 samples. The
+  reference implementation (whipper's `accuraterip-checksum.c`)
+  includes 1-based positions `>= 2940` — i.e. it skips only the
+  first 2939 samples — and the multiplier is always the sample's
+  absolute position within the track. Middle- and last-track CRCs
+  were unaffected (the window starts at position 1, making the two
+  schemes identical there); first-track CRCs were wrong. Now
+  verified byte-for-byte against an EAC rip log and a live
+  database response (confidence 19).
+- **AccurateRip disc IDs fixed.**
+  `AccurateRipDiscId.fromTrackSampleCounts` biased every track
+  offset by +150 sectors when computing `discId1` / `discId2`. The
+  canonical algorithm uses raw LBA offsets (track 1 = 0; a zero
+  offset counts as 1 in `discId2`). The 150-sector lead-in bias
+  applies only to the CDDB disc ID, which was — and remains —
+  correct.
+- **Lookup URL path fixed.** `buildAccurateRipUrl` built the three
+  directory levels as cumulative substrings of `discId1`
+  (`/5/25/725/`); the database actually shards by the low three
+  nibbles as single hex digits (`/5/2/7/`). The old URLs returned
+  404 for every disc.
+- New regression tests pin a live-confirmed disc
+  (Faithless — *No Roots* [UK]): disc IDs, lookup URL, and the
+  updated hand-derived CRC windows. The io/web differential test
+  continues to pin bit-identical output across both CRC
+  implementations.
+
 ## 0.0.3
 
 - **Web-safe CRC implementation.** `computeArV1`, `computeArV2`,

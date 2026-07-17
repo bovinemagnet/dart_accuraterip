@@ -20,15 +20,14 @@ class AccurateRipDiscId {
     required this.trackCount,
   });
 
-  /// First AccurateRip disc ID — the sum of track start offsets
-  /// (each biased by the CD lead-in of 150 sectors) plus the
-  /// lead-out sector.
+  /// First AccurateRip disc ID — the sum of raw LBA track start
+  /// offsets (track 1 = 0) plus the lead-out sector.
   final int discId1;
 
-  /// Second AccurateRip disc ID — the weighted sum of track start
-  /// offsets (each biased by 150 and multiplied by its 1-based
-  /// track index) plus the lead-out sector weighted by
-  /// `trackCount + 1`.
+  /// Second AccurateRip disc ID — the weighted sum of raw LBA track
+  /// start offsets (each multiplied by its 1-based track index, a
+  /// zero offset counting as 1) plus the lead-out sector weighted
+  /// by `trackCount + 1`.
   final int discId2;
 
   /// The FreeDB/CDDB disc ID derived from the same track offsets.
@@ -47,8 +46,9 @@ class AccurateRipDiscId {
   /// it is always 44100, which is the default.
   ///
   /// The AccurateRip protocol measures offsets in CD sectors, where
-  /// one sector is 588 stereo frames. Each offset is biased by the
-  /// standard 150-sector lead-in used by CD TOCs.
+  /// one sector is 588 stereo frames. The AccurateRip IDs use raw
+  /// LBA offsets; only the CDDB ID applies the standard 150-sector
+  /// (2-second) lead-in bias.
   factory AccurateRipDiscId.fromTrackSampleCounts(
     List<int> trackSampleCounts, {
     int sampleRate = 44100,
@@ -62,21 +62,28 @@ class AccurateRipDiscId {
     }
     final leadOutOffset = offsets.last + (trackSampleCounts.last ~/ 588);
 
-    // discId1: Σ (offset + 150) for all tracks, plus (leadOut + 150).
+    // The AccurateRip IDs use raw LBA offsets (track 1 = 0) — the
+    // 150-sector lead-in bias belongs only to the CDDB ID below.
+    // This matches the whipper and CUETools reference
+    // implementations and was confirmed against the live database
+    // (a +150-biased ID returns 404 for a disc the database holds).
+
+    // discId1: Σ offset for all tracks, plus the lead-out.
     var id1 = 0;
     for (final offset in offsets) {
-      id1 += offset + 150;
+      id1 += offset;
     }
-    id1 += leadOutOffset + 150;
+    id1 += leadOutOffset;
     id1 &= 0xFFFFFFFF;
 
-    // discId2: Σ (offset + 150) * trackIndex for all tracks, plus
-    // (leadOut + 150) * (trackCount + 1).
+    // discId2: Σ max(offset, 1) * trackIndex for all tracks, plus
+    // leadOut * (trackCount + 1). A zero offset counts as 1 so that
+    // track 1 still contributes.
     var id2 = 0;
     for (var i = 0; i < offsets.length; i++) {
-      id2 += (offsets[i] + 150) * (i + 1);
+      id2 += (offsets[i] == 0 ? 1 : offsets[i]) * (i + 1);
     }
-    id2 += (leadOutOffset + 150) * (trackCount + 1);
+    id2 += leadOutOffset * (trackCount + 1);
     id2 &= 0xFFFFFFFF;
 
     // CDDB disc ID: sum of decimal-digit sums of each track's start

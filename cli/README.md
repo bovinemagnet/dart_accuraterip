@@ -107,11 +107,10 @@ FLAC support inside this CLI is planned for a later round.
 
 ## Platform support
 
-Dart VM / Flutter native only (Android, iOS, macOS, Windows,
-Linux). The underlying CRC functions rely on native 64-bit
-integer arithmetic and will produce wrong results under dart2js
-/ WASM. See the main library's README for the platform-support
-matrix.
+Dart VM only (macOS, Windows, Linux) — the CLI reads files and
+talks HTTP via `dart:io`. The underlying library itself runs on
+every Dart platform, including dart2js / dart2wasm, since 0.0.3;
+see the main library's README for the platform-support matrix.
 
 ## Licence
 

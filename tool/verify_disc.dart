@@ -273,9 +273,14 @@ Future<bool> _isOnPath(String binary) async {
 }
 
 Future<Uint8List> _decodeFlacToPcm(String flacPath) async {
+  // -F (decode through errors): some old rips carry trailing junk
+  // after the FLAC stream (e.g. Sound Forge edit artefacts), which
+  // makes `flac` report LOST_SYNC *after* every sample has decoded
+  // and exit non-zero. With -F the WAV on stdout is still complete
+  // and byte-exact, so treat only a genuinely non-zero exit as fatal.
   final result = await Process.run(
     'flac',
-    ['-d', '-c', '-s', flacPath],
+    ['-d', '-F', '-c', '-s', flacPath],
     stdoutEncoding: null,
     stderrEncoding: null,
   );

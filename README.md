@@ -14,7 +14,8 @@ stub) without forcing a transitive dep on every consumer.
 
 - **AccurateRip v1 and v2 CRC** over raw PCM (16-bit signed LE,
   stereo interleaved), with optional first/last-track lead-in /
-  lead-out skip (the standard 2940-frame exclusion).
+  lead-out skip (the standard 5-sector exclusion), verified
+  bit-for-bit against EAC rip logs and the live database.
 - **WAV input helpers** — `extractPcmFromWav`, `computeArV1FromWav`,
   `computeArV2FromWav` walk a RIFF/WAVE byte buffer and run the
   CRC in a single call (tolerant of extra `LIST`/`INFO`/`fact`

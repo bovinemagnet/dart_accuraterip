@@ -10,11 +10,14 @@ void main() {
       expect(id.trackCount, equals(1));
 
       // Track 1 offset = 0; lead-out = 7938000 / 588 = 13500.
-      // discId1 = (0 + 150) + (13500 + 150) = 13800.
-      expect(id.discId1, equals(13800));
+      // AccurateRip IDs use raw LBA offsets — no 150-sector bias
+      // (that convention belongs to the CDDB ID only).
+      // discId1 = 0 + 13500 = 13500.
+      expect(id.discId1, equals(13500));
 
-      // discId2 = (0 + 150) * 1 + (13500 + 150) * 2 = 150 + 27300 = 27450.
-      expect(id.discId2, equals(27450));
+      // discId2 counts a zero offset as 1:
+      // discId2 = max(0, 1) * 1 + 13500 * 2 = 1 + 27000 = 27001.
+      expect(id.discId2, equals(27001));
     });
 
     test('multi-track disc produces monotonically different IDs', () {
@@ -26,14 +29,33 @@ void main() {
 
       // Each track is 10584000 / 588 = 18_000 sectors long.
       // offsets = [0, 18000, 36000, 54000]; lead-out = 72000.
-      // discId1 = (0+150)+(18000+150)+(36000+150)+(54000+150)+(72000+150)
-      //         = 150 + 18150 + 36150 + 54150 + 72150 = 180750.
-      expect(id.discId1, equals(180750));
+      // discId1 = 0 + 18000 + 36000 + 54000 + 72000 = 180000.
+      expect(id.discId1, equals(180000));
 
-      // discId2 = (0+150)*1 + (18000+150)*2 + (36000+150)*3
-      //         + (54000+150)*4 + (72000+150)*5
-      //         = 150 + 36300 + 108450 + 216600 + 360750 = 722250.
-      expect(id.discId2, equals(722250));
+      // discId2 = max(0,1)*1 + 18000*2 + 36000*3 + 54000*4 + 72000*5
+      //         = 1 + 36000 + 108000 + 216000 + 360000 = 720001.
+      expect(id.discId2, equals(720001));
+    });
+
+    test('known disc: Faithless — No Roots [UK] (live-database confirmed)', () {
+      // Per-track lengths in sectors, taken from the EAC log TOC of
+      // a real pressing (track N length = start(N+1) − start(N),
+      // lead-out 242503). The expected IDs were confirmed against
+      // the live AccurateRip database: the URL built from them
+      // returns HTTP 200 with a 5-pressing response, while any
+      // +150-biased variant returns 404.
+      const sectorLengths = [
+        2120, 16821, 12704, 14336, 9774, 12382, 18194, 16629,
+        24290, 17025, 20026, 10470, 31356, 20349, 16027, //
+      ];
+      final id = AccurateRipDiscId.fromTrackSampleCounts(
+        [for (final s in sectorLengths) s * 588],
+      );
+
+      expect(id.trackCount, equals(15));
+      expect(id.discId1, equals(0x0019e725));
+      expect(id.discId2, equals(0x0132e444));
+      expect(id.cddbDiscId, equals(0xad0ca10f));
     });
 
     test('custom sample rate is accepted without changing offset math', () {

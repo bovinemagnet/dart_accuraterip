@@ -67,18 +67,18 @@ int computeArV1(
   );
 
   final totalSamples = samples.length;
-  final startIndex = isFirstTrack ? accurateRipSkipFrames : 0;
+  // Window and absolute-position multiplier kept in lock-step with
+  // the native implementation — see `accuraterip_crc_io.dart`.
+  final startIndex = isFirstTrack ? accurateRipSkipFrames - 1 : 0;
   final endIndex = isLastTrack
       ? (totalSamples - accurateRipSkipFrames).clamp(0, totalSamples)
       : totalSamples;
 
   int crc = 0;
-  int multiplier = 1;
 
   for (var i = startIndex; i < endIndex; i++) {
     final sample = samples[i];
-    crc = (crc + _mulLow32(sample, multiplier)).toUnsigned(32);
-    multiplier++;
+    crc = (crc + _mulLow32(sample, i + 1)).toUnsigned(32);
   }
 
   return crc;
@@ -97,16 +97,18 @@ int computeArV2(
   );
 
   final totalSamples = samples.length;
-  final startIndex = isFirstTrack ? accurateRipSkipFrames : 0;
+  // Window and absolute-position multiplier kept in lock-step with
+  // the native implementation — see `accuraterip_crc_io.dart`.
+  final startIndex = isFirstTrack ? accurateRipSkipFrames - 1 : 0;
   final endIndex = isLastTrack
       ? (totalSamples - accurateRipSkipFrames).clamp(0, totalSamples)
       : totalSamples;
 
   int crc = 0;
-  int multiplier = 1;
 
   for (var i = startIndex; i < endIndex; i++) {
     final sample = samples[i];
+    final multiplier = i + 1;
     // v2 folds the upper 32 bits of the 64-bit product back into
     // the accumulator — equivalent to the native
     // `(mult & 0xFFFFFFFF) + ((mult >> 32) & 0xFFFFFFFF)`.
@@ -142,7 +144,6 @@ int computeArV2(
     final high32 = (carry + (p01 >>> 16) + (p10 >>> 16) + p11).toUnsigned(32);
 
     crc = (crc + low32 + high32).toUnsigned(32);
-    multiplier++;
   }
 
   return crc;

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.0.2
+
+- Rebuilt against `dart_accuraterip` 0.0.4, which fixes three
+  correctness bugs that made earlier CLI results wrong: first-track
+  CRC skip semantics, AccurateRip disc-ID computation (+150 bias
+  removed), and the database lookup URL path (nibble directories).
+  `verify` and `query` previously reported "No entry in the
+  AccurateRip database" for discs the database holds, and `crc`
+  printed wrong values for first tracks (`--first`).
+- No CLI-level interface changes.
+
 ## 0.0.1
 
 - Initial release of `dart_accuraterip_cli`.
