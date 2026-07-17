@@ -1,0 +1,8 @@
+# Development override: resolve dart_accuraterip from the parent
+# directory so local changes to the library are picked up without
+# publishing. `dart pub publish` ignores this file — consumers who
+# install from pub.dev get the `^` version dependency from
+# pubspec.yaml.
+dependency_overrides:
+  dart_accuraterip:
+    path: ../

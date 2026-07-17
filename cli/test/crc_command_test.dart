@@ -126,11 +126,33 @@ void main() {
       byteData.setUint32(24, 48000, Endian.little);
       final path = writeWav('48k.wav', wav);
       final buffer = StringBuffer();
+      final errBuffer = StringBuffer();
 
-      final exit = await runCrc([path], _bufferSink(buffer));
+      final exit = await runCrc(
+        [path],
+        _bufferSink(buffer),
+        err: _bufferSink(errBuffer),
+      );
 
       expect(exit, equals(64));
       expect(buffer.toString(), isNot(contains('v1:')));
+      // The error path goes to the injected err sink, so the
+      // message is assertable (issue #5).
+      expect(errBuffer.toString(), contains('not Red Book CD-DA audio'));
+      expect(errBuffer.toString(), contains('48000 Hz'));
+    });
+
+    test('reports a missing file on the injected err sink', () async {
+      final errBuffer = StringBuffer();
+
+      final exit = await runCrc(
+        ['${tmpDir.path}/absent.wav'],
+        _bufferSink(StringBuffer()),
+        err: _bufferSink(errBuffer),
+      );
+
+      expect(exit, equals(64));
+      expect(errBuffer.toString(), contains('file not found'));
     });
 
     test('returns non-zero when the file does not exist', () async {

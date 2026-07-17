@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.0.4
+
+- **First pub.dev release.** The dependency on `dart_accuraterip`
+  is now a version constraint (`^0.0.5`) instead of a local path,
+  so `dart pub global activate dart_accuraterip_cli` works as the
+  README describes. Local development still resolves the library
+  from the parent directory via `pubspec_overrides.yaml`.
+- All four subcommands accept an injectable `err` sink (defaulting
+  to `stderr`), so failure messages are assertable in tests rather
+  than escaping to the process's real stderr.
+- `verify` uses a properly typed `List<Uint8List>` for loaded PCM
+  buffers, removing an `as dynamic` cast.
+
 ## 0.0.3
 
 - `crc`, `disc-id`, and `verify` now reject WAV input that is not

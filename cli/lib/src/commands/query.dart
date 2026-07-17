@@ -31,6 +31,7 @@ Future<int> runQuery(
   List<String> argv,
   IOSink out, {
   AccurateRipFetcher? fetcher,
+  IOSink? err,
 }) async {
   if (isHelp(argv)) {
     out.writeln(_usage);
@@ -89,7 +90,7 @@ Future<int> runQuery(
     }
     return 0;
   } on FormatException catch (e) {
-    stderr.writeln('dart-accuraterip query: ${e.message}');
+    (err ?? stderr).writeln('dart-accuraterip query: ${e.message}');
     return 64;
   }
 }

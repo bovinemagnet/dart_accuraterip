@@ -6,6 +6,7 @@
 library;
 
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dart_accuraterip/dart_accuraterip.dart';
 
@@ -39,6 +40,7 @@ Future<int> runVerify(
   List<String> argv,
   IOSink out, {
   AccurateRipFetcher? fetcher,
+  IOSink? err,
 }) async {
   if (isHelp(argv)) {
     out.writeln(_usage);
@@ -57,7 +59,7 @@ Future<int> runVerify(
     // Load every WAV up front so we can compute both sample
     // counts (for disc ID) and CRCs (with correct first/last
     // skip flags).
-    final pcms = <List<int>>[];
+    final pcms = <Uint8List>[];
     for (final path in paths) {
       pcms.add(loadWavPcm(path));
     }
@@ -86,7 +88,7 @@ Future<int> runVerify(
     final lastIndex = paths.length - 1;
     final locals = <_LocalCrcs>[];
     for (var i = 0; i < pcms.length; i++) {
-      final pcm = pcms[i] as dynamic; // Uint8List under the hood
+      final pcm = pcms[i];
       locals.add(
         _LocalCrcs(
           v1: computeArV1(
@@ -160,7 +162,7 @@ Future<int> runVerify(
     );
     return allPass ? 0 : 1;
   } on FormatException catch (e) {
-    stderr.writeln('dart-accuraterip verify: ${e.message}');
+    (err ?? stderr).writeln('dart-accuraterip verify: ${e.message}');
     return 64;
   }
 }

@@ -26,7 +26,7 @@ flags:
 ''';
 
 /// Entry point for the `disc-id` subcommand.
-Future<int> runDiscId(List<String> argv, IOSink out) async {
+Future<int> runDiscId(List<String> argv, IOSink out, {IOSink? err}) async {
   if (isHelp(argv)) {
     out.writeln(_usage);
     return 0;
@@ -56,7 +56,7 @@ Future<int> runDiscId(List<String> argv, IOSink out) async {
     out.writeln('url:        ${buildAccurateRipUrl(id)}');
     return 0;
   } on FormatException catch (e) {
-    stderr.writeln('dart-accuraterip disc-id: ${e.message}');
+    (err ?? stderr).writeln('dart-accuraterip disc-id: ${e.message}');
     return 64;
   }
 }

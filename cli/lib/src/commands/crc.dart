@@ -30,7 +30,7 @@ Both skip flags may be set together on a single-track disc.
 ///
 /// Returns the intended exit code — the caller in `bin/` is
 /// responsible for assigning it to `exitCode`.
-Future<int> runCrc(List<String> argv, IOSink out) async {
+Future<int> runCrc(List<String> argv, IOSink out, {IOSink? err}) async {
   if (isHelp(argv)) {
     out.writeln(_usage);
     return 0;
@@ -51,7 +51,7 @@ Future<int> runCrc(List<String> argv, IOSink out) async {
     out.writeln('v2: ${_hex8(v2)}');
     return 0;
   } on FormatException catch (e) {
-    stderr.writeln('dart-accuraterip crc: ${e.message}');
+    (err ?? stderr).writeln('dart-accuraterip crc: ${e.message}');
     return 64;
   }
 }

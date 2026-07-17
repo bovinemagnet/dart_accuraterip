@@ -218,9 +218,21 @@ unless one of them grows beyond a couple of screens.
 providing the `dart-accuraterip` executable with four subcommands:
 `crc`, `disc-id`, `verify`, `query`. Key points:
 
-- **Unpublished** (`publish_to: none`) while it depends on the
-  library via `path: ../`. When the library ships to pub.dev, swap
-  to a version dep and remove the `publish_to` line.
+- **Published to pub.dev** (since cli 0.0.4) with a hosted
+  dependency on `dart_accuraterip`. Local development still
+  resolves the library from the parent directory via
+  `cli/pubspec_overrides.yaml` (ignored by `pub publish`), so
+  workspace changes are picked up without publishing.
+- **Publish with `tool/publish_cli.sh`, never `cd cli && dart pub
+  publish`.** The root `.pubignore` needs a `cli/` pattern to keep
+  the cli out of the LIBRARY tarball, but pub applies parent
+  ignore files when publishing a sub-directory package (and does
+  NOT auto-exclude nested packages — both verified empirically on
+  Dart 3.12), so a direct publish fails with "The pubspec is
+  hidden". The script exports cli/ to a temp directory outside the
+  repo (dropping `pubspec_overrides.yaml`), re-runs get/analyze/
+  test there against the real hosted library, and dry-runs by
+  default — pass `--publish` for the real thing.
 - **Zero dependencies beyond the library** — no `package:args`, no
   `package:http`. Argument parsing is hand-rolled
   (`cli/lib/src/args.dart`) and HTTP uses `dart:io`'s `HttpClient`
@@ -232,8 +244,10 @@ providing the `dart-accuraterip` executable with four subcommands:
 - Exit codes: `64` (EX_USAGE) for usage errors / `FormatException`;
   `verify` exits `1` on any CRC mismatch so it can gate a pipeline.
 - Commands live one-per-file under `cli/lib/src/commands/`; each
-  exports a `run<Name>(List<String> argv, IOSink out)` function
-  that returns the exit code, which is what the tests drive.
+  exports a `run<Name>(List<String> argv, IOSink out, {IOSink? err})`
+  function that returns the exit code, which is what the tests
+  drive. Error messages go to `err` (default `stderr`), so tests
+  can assert them.
 - It has its own `dart pub get` / `dart analyze` / `dart test`
   cycle — CI runs both packages.
 
@@ -242,9 +256,10 @@ providing the `dart-accuraterip` executable with four subcommands:
 `.github/workflows/ci.yml` runs on pushes/PRs to `main`: a
 3-OS × {stable, beta} SDK matrix doing format check, analyse
 (`--fatal-warnings`) and tests for **both** the root and `cli/`
-packages, plus a `dart doc --dry-run` job and a
-`dart pub publish --dry-run` job (root package only — the cli is
-`publish_to: none` so it is deliberately excluded from the dry-run).
+packages, plus a `dart doc --dry-run` job and a publish-dry-run
+job covering both packages (the cli via `tool/publish_cli.sh`,
+which validates against the hosted library rather than the
+workspace copy).
 `.github/workflows/release.yml` compiles the CLI to native binaries
 (linux-x64, macos-arm64, windows-x64) on `v*` tags and attaches
 them to the GitHub release.
@@ -318,8 +333,11 @@ GPL-3.0, matching the author's `dart_metaflac` package.
   see `.github/workflows/ci.yml` and the Continuous-integration
   section above.
 - FLAC support in the CLI (currently WAV only — see `cli/README.md`).
-- Publish `dart_accuraterip` to pub.dev, then flip the cli's
-  `path:` dependency to a version dependency and publish it too.
+- ~~Publish `dart_accuraterip` to pub.dev, then flip the cli's
+  `path:` dependency to a version dependency and publish it too.~~
+  **Done** — library 0.0.4/0.0.5 published; cli publishable since
+  0.0.4 via `tool/publish_cli.sh` (see the CLI sub-package
+  section).
 - ~~Consider a web-safe CRC implementation built on `package:fixnum`
   exposed under a separate entry point.~~ **Done** in 0.0.3, but
   without `package:fixnum` — a pure-Dart split 16-bit multiply in

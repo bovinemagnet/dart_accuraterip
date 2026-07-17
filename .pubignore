@@ -22,4 +22,10 @@ CLAUDE.md
 tool/
 
 # --- CLI sub-package (dart_accuraterip_cli, shipped separately) ---
+# NOTE: this pattern leaks into `dart pub publish` runs made from
+# inside cli/ (parent ignore files apply to sub-directories, and
+# pub does NOT auto-exclude nested packages — verified on Dart
+# 3.12), where it manifests as "The pubspec is hidden". Publish the
+# cli with tool/publish_cli.sh, which exports cli/ to a clean
+# directory outside the repo first.
 cli/
