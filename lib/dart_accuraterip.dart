@@ -16,6 +16,7 @@
 /// | [computeArV1] / [computeArV2]                  |         yes         | yes |
 /// | [computeArV1FromWav] / [computeArV2FromWav]    |         yes         | yes |
 /// | [extractPcmFromWav]                            |         yes         | yes |
+/// | [parseWavFormat] / [WavFormat]                 |         yes         | yes |
 /// | [AccurateRipDiscId]                            |         yes         | yes |
 /// | [buildAccurateRipUrl]                          |         yes         | yes |
 /// | [parseAccurateRipResponse]                     |         yes         | yes |

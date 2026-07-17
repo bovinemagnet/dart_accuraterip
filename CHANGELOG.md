@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.0.5
+
+- **`computeArV1FromWav` / `computeArV2FromWav` now reject
+  non-Red-Book input** (closes #7). AccurateRip checksums are
+  defined only for Red Book CD-DA — 16-bit stereo 44.1 kHz integer
+  PCM. Previously the wrappers checksummed whatever `data` chunk
+  they found, so a mono, 24-bit, float, or 48 kHz WAV silently
+  produced a plausible-looking but physically meaningless CRC.
+  They now throw [ArgumentError] naming the offending fields.
+  **Behaviour change:** callers who deliberately checksum
+  non-conforming WAVs should switch to
+  `computeArV1(extractPcmFromWav(bytes), …)`, which remains
+  permissive.
+- New public surface: `WavFormat` (immutable `fmt ` chunk model
+  with `isRedBookCdAudio` and `requireRedBookCdAudio()`) and
+  `parseWavFormat(Uint8List) → WavFormat`. Malformed input —
+  missing `RIFF`/`WAVE` signature, no `fmt ` chunk, or a `fmt `
+  chunk shorter than 16 bytes — throws `FormatException`,
+  consistent with `extractPcmFromWav`.
+- The RIFF chunk walk is now a single private helper shared by
+  `extractPcmFromWav` and `parseWavFormat`, so the two walkers
+  cannot drift apart (closes #6).
+- Corrected stale doc comments in `lib/src/wav.dart` that still
+  described the CRC functions as native-only — they have been
+  web-safe since 0.0.3.
+
 ## 0.0.4
 
 Three correctness fixes, all discovered by end-to-end verification

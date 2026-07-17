@@ -19,7 +19,10 @@ stub) without forcing a transitive dep on every consumer.
 - **WAV input helpers** — `extractPcmFromWav`, `computeArV1FromWav`,
   `computeArV2FromWav` walk a RIFF/WAVE byte buffer and run the
   CRC in a single call (tolerant of extra `LIST`/`INFO`/`fact`
-  chunks and truncated trailing data).
+  chunks and truncated trailing data). The `FromWav` wrappers
+  validate that the input is Red Book CD-DA (16-bit stereo
+  44.1 kHz PCM) — `parseWavFormat` / `WavFormat` expose the same
+  check for your own pipelines.
 - **Disc ID computation** from per-track sample counts — produces
   `discId1`, `discId2`, and the legacy `cddbDiscId`.
 - **URL builder** for the AccurateRip HTTP database lookup.

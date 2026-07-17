@@ -11,8 +11,16 @@ import 'package:dart_accuraterip/dart_accuraterip.dart';
 import 'package:test/test.dart';
 
 /// Build a minimal but well-formed RIFF/WAVE file containing the
-/// given raw PCM bytes. 16-bit stereo, 44.1 kHz, mono `fmt ` + `data`.
-Uint8List buildSimpleWav(Uint8List pcm) {
+/// given raw PCM bytes. Defaults to Red Book CD-DA (PCM format 1,
+/// stereo, 44.1 kHz, 16-bit); pass overrides to build
+/// non-conforming fixtures.
+Uint8List buildSimpleWav(
+  Uint8List pcm, {
+  int formatCode = 1,
+  int channels = 2,
+  int sampleRate = 44100,
+  int bitsPerSample = 16,
+}) {
   final builder = BytesBuilder();
 
   // --- RIFF header ---
@@ -21,15 +29,15 @@ Uint8List buildSimpleWav(Uint8List pcm) {
   builder.add(ascii('WAVE'));
 
   // --- fmt chunk (16 bytes for PCM) ---
+  final blockAlign = channels * bitsPerSample ~/ 8;
   builder.add(ascii('fmt '));
   builder.add(_u32le(16)); // chunk size
-  builder.add(_u16le(1)); // PCM format
-  builder.add(_u16le(2)); // channels = 2 (stereo)
-  builder.add(_u32le(44100)); // sample rate
-  builder.add(
-      _u32le(44100 * 4)); // byte rate (sample_rate * num_channels * bits/8)
-  builder.add(_u16le(4)); // block align (num_channels * bits/8)
-  builder.add(_u16le(16)); // bits per sample
+  builder.add(_u16le(formatCode));
+  builder.add(_u16le(channels));
+  builder.add(_u32le(sampleRate));
+  builder.add(_u32le(sampleRate * blockAlign)); // byte rate
+  builder.add(_u16le(blockAlign));
+  builder.add(_u16le(bitsPerSample));
 
   // --- data chunk ---
   builder.add(ascii('data'));
@@ -200,6 +208,118 @@ void main() {
         computeArV1FromWav(wav, isLastTrack: true),
         equals(computeArV1(pcm, isLastTrack: true)),
       );
+    });
+  });
+
+  group('parseWavFormat', () {
+    test('reads the fmt chunk of a Red Book WAV', () {
+      final format = parseWavFormat(buildSimpleWav(fourFramePcm()));
+
+      expect(format.formatCode, equals(1));
+      expect(format.channels, equals(2));
+      expect(format.sampleRate, equals(44100));
+      expect(format.bitsPerSample, equals(16));
+      expect(format.isRedBookCdAudio, isTrue);
+    });
+
+    test('reads the fmt chunk when extra chunks precede data', () {
+      final format = parseWavFormat(buildWavWithExtraListChunk(fourFramePcm()));
+
+      expect(format.isRedBookCdAudio, isTrue);
+    });
+
+    test('throws FormatException when there is no fmt chunk', () {
+      final builder = BytesBuilder();
+      builder.add(ascii('RIFF'));
+      builder.add(_u32le(4 + 8 + 4));
+      builder.add(ascii('WAVE'));
+      builder.add(ascii('data'));
+      builder.add(_u32le(4));
+      builder.add([0, 0, 0, 0]);
+
+      expect(
+        () => parseWavFormat(Uint8List.fromList(builder.toBytes())),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('throws FormatException on a truncated fmt chunk', () {
+      final builder = BytesBuilder();
+      builder.add(ascii('RIFF'));
+      builder.add(_u32le(4 + 8 + 8));
+      builder.add(ascii('WAVE'));
+      builder.add(ascii('fmt '));
+      builder.add(_u32le(8)); // declares 8 bytes — fmt needs 16
+      builder.add([1, 0, 2, 0, 0x44, 0xAC, 0, 0]);
+
+      expect(
+        () => parseWavFormat(Uint8List.fromList(builder.toBytes())),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('throws FormatException on a non-RIFF file', () {
+      expect(
+        () => parseWavFormat(Uint8List.fromList(ascii('NOPEnotawavatall'))),
+        throwsA(isA<FormatException>()),
+      );
+    });
+  });
+
+  group('WavFormat.requireRedBookCdAudio', () {
+    test('accepts Red Book CD-DA', () {
+      const format = WavFormat(
+        formatCode: 1,
+        channels: 2,
+        sampleRate: 44100,
+        bitsPerSample: 16,
+      );
+
+      expect(format.requireRedBookCdAudio, returnsNormally);
+    });
+
+    test('rejects mono, 24-bit, 48 kHz, and float WAVs', () {
+      const nonConforming = [
+        WavFormat(
+            formatCode: 1, channels: 1, sampleRate: 44100, bitsPerSample: 16),
+        WavFormat(
+            formatCode: 1, channels: 2, sampleRate: 44100, bitsPerSample: 24),
+        WavFormat(
+            formatCode: 1, channels: 2, sampleRate: 48000, bitsPerSample: 16),
+        // 3 = WAVE_FORMAT_IEEE_FLOAT.
+        WavFormat(
+            formatCode: 3, channels: 2, sampleRate: 44100, bitsPerSample: 32),
+      ];
+
+      for (final format in nonConforming) {
+        expect(
+          format.requireRedBookCdAudio,
+          throwsA(isA<ArgumentError>()),
+          reason: '$format should be rejected',
+        );
+      }
+    });
+  });
+
+  group('FromWav wrappers reject non-Red-Book input', () {
+    test('throw ArgumentError for a 48 kHz WAV', () {
+      final wav = buildSimpleWav(fourFramePcm(), sampleRate: 48000);
+
+      expect(() => computeArV1FromWav(wav), throwsA(isA<ArgumentError>()));
+      expect(() => computeArV2FromWav(wav), throwsA(isA<ArgumentError>()));
+    });
+
+    test('throw ArgumentError for a mono WAV', () {
+      final wav = buildSimpleWav(fourFramePcm(), channels: 1);
+
+      expect(() => computeArV1FromWav(wav), throwsA(isA<ArgumentError>()));
+    });
+
+    test('still compute normally for Red Book input', () {
+      final pcm = fourFramePcm();
+      final wav = buildSimpleWav(pcm);
+
+      expect(computeArV1FromWav(wav), equals(computeArV1(pcm)));
     });
   });
 }

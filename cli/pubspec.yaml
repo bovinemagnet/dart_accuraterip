@@ -3,7 +3,7 @@ description: >
   Command-line interface for dart_accuraterip. Computes AccurateRip
   v1/v2 CRCs, disc IDs, and verifies ripped WAV files against the
   AccurateRip database.
-version: 0.0.2
+version: 0.0.3
 repository: https://github.com/bovinemagnet/dart_accuraterip
 homepage: https://github.com/bovinemagnet/dart_accuraterip
 issue_tracker: https://github.com/bovinemagnet/dart_accuraterip/issues

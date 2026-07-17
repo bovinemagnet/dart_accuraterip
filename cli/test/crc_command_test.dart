@@ -113,6 +113,26 @@ void main() {
       expect(exit, isNot(equals(0)));
     });
 
+    test('rejects a non-Red-Book WAV (48 kHz) with a usage error', () async {
+      // A 48 kHz WAV is well-formed but AccurateRip is undefined
+      // for it — the loader must refuse rather than print a
+      // meaningless CRC.
+      final pcm = buildFourFramePcm();
+      final wav = buildSimpleWav(pcm);
+      // Patch the fmt chunk's sample-rate field (bytes 24..27 in
+      // the fixed header buildSimpleWav emits) from 44100 to 48000.
+      final byteData = ByteData.sublistView(wav);
+      expect(byteData.getUint32(24, Endian.little), equals(44100));
+      byteData.setUint32(24, 48000, Endian.little);
+      final path = writeWav('48k.wav', wav);
+      final buffer = StringBuffer();
+
+      final exit = await runCrc([path], _bufferSink(buffer));
+
+      expect(exit, equals(64));
+      expect(buffer.toString(), isNot(contains('v1:')));
+    });
+
     test('returns non-zero when the file does not exist', () async {
       final buffer = StringBuffer();
       final exit = await runCrc(

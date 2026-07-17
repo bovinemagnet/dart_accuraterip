@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.0.3
+
+- `crc`, `disc-id`, and `verify` now reject WAV input that is not
+  Red Book CD-DA (16-bit stereo 44.1 kHz integer PCM) with a
+  single-line error and exit code 64, instead of silently printing
+  a physically meaningless CRC. Uses the library's new
+  `parseWavFormat` / `WavFormat.requireRedBookCdAudio` surface
+  (dart_accuraterip 0.0.5).
+
 ## 0.0.2
 
 - Rebuilt against `dart_accuraterip` 0.0.4, which fixes three

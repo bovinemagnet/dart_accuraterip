@@ -9,4 +9,4 @@
 library;
 
 /// The CLI package version, mirrored from `cli/pubspec.yaml`.
-const String cliVersion = '0.0.2';
+const String cliVersion = '0.0.3';

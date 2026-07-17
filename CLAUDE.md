@@ -58,9 +58,21 @@ All types and functions are re-exported from the single entry point
   tolerates extra chunks and truncated data. Throws
   `FormatException` on malformed input. Ported from the private
   `_extractWavData` in `tool/verify_disc.dart` during 0.0.1.
+  Deliberately permissive — it never checks the audio format.
+- `class WavFormat` (const constructor; `formatCode`, `channels`,
+  `sampleRate`, `bitsPerSample`, `isRedBookCdAudio`,
+  `requireRedBookCdAudio()`) and
+  `WavFormat parseWavFormat(Uint8List wavBytes)` — added in 0.0.5.
+  `requireRedBookCdAudio` throws `ArgumentError` (audio format is
+  a bad *argument*); `parseWavFormat` throws `FormatException`
+  (byte stream is malformed). Keep that split.
 - `int computeArV1FromWav(Uint8List wavBytes, {bool isFirstTrack, bool isLastTrack})`
-  and `int computeArV2FromWav(...)` — one-liner wrappers chaining
-  `extractPcmFromWav` with the CRC functions.
+  and `int computeArV2FromWav(...)` — wrappers chaining the Red
+  Book check (since 0.0.5), `extractPcmFromWav`, and the CRC
+  functions. They throw `ArgumentError` on non-Red-Book input —
+  AccurateRip is undefined for anything but 16-bit stereo
+  44.1 kHz PCM, and a silently wrong CRC is worse than an error.
+  The documented bypass is `computeArV1(extractPcmFromWav(...))`.
 
 Renaming or changing the signature of any of these is a breaking
 change. Bump the `version:` field in `pubspec.yaml` (currently
