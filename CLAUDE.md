@@ -213,9 +213,10 @@ providing the `dart-accuraterip` executable with four subcommands:
   `package:http`. Argument parsing is hand-rolled
   (`cli/lib/src/args.dart`) and HTTP uses `dart:io`'s `HttpClient`
   (`cli/lib/src/io_fetcher.dart`). Keep it that way.
-- The CLI version constant in `cli/bin/dart_accuraterip.dart`
-  (`cliVersion`) is kept in sync with `cli/pubspec.yaml` by hand —
-  update both together.
+- The CLI version constant lives once in `cli/lib/src/version.dart`
+  (`cliVersion`), feeding both `--version` and the HTTP User-Agent.
+  `cli/test/version_test.dart` pins it to `cli/pubspec.yaml` —
+  bump both together or that test fails.
 - Exit codes: `64` (EX_USAGE) for usage errors / `FormatException`;
   `verify` exits `1` on any CRC mismatch so it can gate a pipeline.
 - Commands live one-per-file under `cli/lib/src/commands/`; each

@@ -9,6 +9,11 @@
   `verify` and `query` previously reported "No entry in the
   AccurateRip database" for discs the database holds, and `crc`
   printed wrong values for first tracks (`--first`).
+- The version constant now lives in `lib/src/version.dart` as the
+  single source of truth for both `--version` and the HTTP
+  User-Agent, with a test pinning it to `pubspec.yaml` so the pair
+  can no longer drift (the 0.0.1 → 0.0.2 bump had already missed
+  the hard-coded User-Agent).
 - No CLI-level interface changes.
 
 ## 0.0.1

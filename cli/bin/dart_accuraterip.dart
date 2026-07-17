@@ -15,9 +15,7 @@ import 'package:dart_accuraterip_cli/src/commands/crc.dart';
 import 'package:dart_accuraterip_cli/src/commands/disc_id.dart';
 import 'package:dart_accuraterip_cli/src/commands/query.dart';
 import 'package:dart_accuraterip_cli/src/commands/verify.dart';
-
-/// The package version — kept in sync with cli/pubspec.yaml.
-const String cliVersion = '0.0.2';
+import 'package:dart_accuraterip_cli/src/version.dart';
 
 const String _rootUsage = '''
 dart-accuraterip $cliVersion — AccurateRip CRC, disc ID, and

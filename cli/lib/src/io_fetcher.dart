@@ -17,11 +17,12 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dart_accuraterip/dart_accuraterip.dart';
+import 'package:dart_accuraterip_cli/src/version.dart';
 
-/// User-Agent header used when hitting accuraterip.com. Bumped in
-/// lock-step with the CLI package version — see
-/// `bin/dart_accuraterip.dart`.
-const String cliUserAgent = 'dart-accuraterip/0.0.1';
+/// User-Agent header used when hitting accuraterip.com. Derived
+/// from [cliVersion] so it can never drift from the package
+/// version.
+const String cliUserAgent = 'dart-accuraterip/$cliVersion';
 
 /// Default connect + response timeout for the single AR database
 /// lookup.
