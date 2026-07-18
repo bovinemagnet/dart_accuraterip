@@ -101,6 +101,12 @@ int _parseHex(String s, String fieldName) {
   if (value == null) {
     throw FormatException('invalid $fieldName hex: $s');
   }
+  if (value < 0 || value > 0xFFFFFFFF) {
+    throw FormatException(
+      '$fieldName out of range: $s '
+      '(must fit in 32 bits, i.e. 0..0xffffffff)',
+    );
+  }
   return value;
 }
 

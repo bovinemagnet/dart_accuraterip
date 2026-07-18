@@ -13,16 +13,17 @@ import 'package:dart_accuraterip/dart_accuraterip.dart';
 
 /// Load [path] from disk and return its PCM payload.
 ///
-/// Rejects anything that is not Red Book CD-DA (16-bit stereo
-/// 44.1 kHz integer PCM) — AccurateRip checksums are undefined for
-/// other formats, so refusing loudly beats printing a meaningless
-/// CRC.
+/// Validates that the WAV is Red Book CD-DA (16-bit signed
+/// little-endian PCM, two channels, 44 100 Hz). AccurateRip is
+/// undefined for any other format, so accepting them silently
+/// would produce meaningless CRCs and disc IDs. Mono, 24-bit,
+/// float, and 48 kHz inputs are rejected up front.
 ///
 /// Throws a [FormatException] tagged with the file path on any
 /// failure — missing file, not a RIFF/WAVE stream, no `data`
-/// chunk, or non-Red-Book audio. The tagged message lets the CLI
-/// print a single-line error without stack traces leaking into
-/// stdout.
+/// chunk, missing `fmt ` chunk, or non-Red-Book audio. The
+/// tagged message lets the CLI print a single-line error without
+/// stack traces leaking into stdout.
 Uint8List loadWavPcm(String path) {
   final file = File(path);
   if (!file.existsSync()) {

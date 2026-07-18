@@ -1,5 +1,10 @@
 # dart_accuraterip
 
+[![pub package](https://img.shields.io/pub/v/dart_accuraterip.svg)](https://pub.dev/packages/dart_accuraterip)
+[![pub points](https://img.shields.io/pub/points/dart_accuraterip)](https://pub.dev/packages/dart_accuraterip/score)
+[![likes](https://img.shields.io/pub/likes/dart_accuraterip)](https://pub.dev/packages/dart_accuraterip/score)
+[![licence: GPL-3.0](https://img.shields.io/badge/licence-GPL--3.0-blue.svg)](LICENSE)
+
 Pure-Dart [AccurateRip][ar] v1/v2 CRC computation, disc-ID math, and
 database lookup for CD ripping and verification tools.
 
@@ -43,7 +48,7 @@ Or in `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dart_accuraterip: ^0.0.1
+  dart_accuraterip: ^0.0.3
 ```
 
 ## Platform support

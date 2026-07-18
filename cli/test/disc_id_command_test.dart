@@ -12,19 +12,32 @@ import 'package:dart_accuraterip/dart_accuraterip.dart';
 import 'package:dart_accuraterip_cli/src/commands/disc_id.dart';
 import 'package:test/test.dart';
 
-Uint8List buildSimpleWav(Uint8List pcm) {
+Uint8List buildSimpleWav(Uint8List pcm) => buildWav(pcm: pcm);
+
+/// Build a configurable WAV. Defaults are Red Book CD-DA. Tests that
+/// want to feed a non-Red-Book file to the CLI override individual
+/// arguments.
+Uint8List buildWav({
+  required Uint8List pcm,
+  int channels = 2,
+  int sampleRate = 44100,
+  int bitsPerSample = 16,
+  int audioFormat = 1,
+}) {
+  final blockAlign = channels * (bitsPerSample ~/ 8);
+  final byteRate = sampleRate * blockAlign;
   final builder = BytesBuilder();
   builder.add('RIFF'.codeUnits);
   builder.add(_u32le(36 + pcm.length));
   builder.add('WAVE'.codeUnits);
   builder.add('fmt '.codeUnits);
   builder.add(_u32le(16));
-  builder.add(_u16le(1));
-  builder.add(_u16le(2));
-  builder.add(_u32le(44100));
-  builder.add(_u32le(44100 * 4));
-  builder.add(_u16le(4));
-  builder.add(_u16le(16));
+  builder.add(_u16le(audioFormat));
+  builder.add(_u16le(channels));
+  builder.add(_u32le(sampleRate));
+  builder.add(_u32le(byteRate));
+  builder.add(_u16le(blockAlign));
+  builder.add(_u16le(bitsPerSample));
   builder.add('data'.codeUnits);
   builder.add(_u32le(pcm.length));
   builder.add(pcm);
@@ -107,6 +120,24 @@ void main() {
       final buffer = StringBuffer();
       final exit = await runDiscId(<String>[], _bufferSink(buffer));
       expect(exit, isNot(equals(0)));
+    });
+
+    test('rejects a 48 kHz / mono WAV with a usage exit code', () async {
+      // Mono 48 kHz, 16-bit — looks valid as a RIFF/WAVE file but
+      // is not Red Book CD-DA, so AccurateRip is undefined for it.
+      // The CLI must refuse rather than print a meaningless ID.
+      final path = '${tmpDir.path}/wrong.wav';
+      File(path).writeAsBytesSync(
+        buildWav(
+          pcm: Uint8List(44100 * 2 * 1),
+          channels: 1,
+          sampleRate: 48000,
+        ),
+      );
+
+      final buffer = StringBuffer();
+      final exit = await runDiscId([path], _bufferSink(buffer));
+      expect(exit, equals(64));
     });
 
     test('--help returns zero and prints usage', () async {

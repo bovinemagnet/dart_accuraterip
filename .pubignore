@@ -17,6 +17,8 @@ doc/api/
 
 # --- Internal tooling instructions for agentic coding assistants ---
 CLAUDE.md
+AGENTS.md
+.codex/
 
 # --- Developer-only verification tools (not part of the library) ---
 tool/
