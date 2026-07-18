@@ -107,29 +107,53 @@ cddbDiscId : u32 LE
   wrong. It is `frame450Crc` — a CRC over the first 450 stereo
   frames, used by CUETools for drive-offset verification. It is
   often zero for older pressings. Do not rename it back.
-- **CRC skip window is asymmetric and the multiplier is absolute.**
-  The reference loop (whipper `src/accuraterip-checksum.c`) includes
-  1-based sample positions `[2940 .. total − 2940]`: the first track
-  skips only the first **2939** samples (5×588 − 1), the last track
-  skips the final **2940**, and the multiplier is always the
-  sample's absolute position within the track — skipped samples
-  still advance it. An earlier iteration of this package restarted
-  the multiplier at 1 after the skip and skipped 2940 leading
-  samples; it produced wrong first-track CRCs (middle/last tracks
-  were coincidentally right because their window starts at
-  position 1). Fixed in 0.0.4 and pinned against a real EAC log +
-  live database response. Do not "simplify" the `i + 1` multiplier
-  back to a window-relative counter.
-- **AccurateRip disc IDs use raw LBA offsets — no +150.** Track 1's
-  offset is 0; `discId2` counts a zero offset as 1. Only the CDDB
-  disc ID applies the 150-sector (2-second) lead-in bias. A
-  +150-biased ID looks plausible but 404s on the live database for
-  discs it demonstrably holds. Fixed in 0.0.4.
-- **The lookup URL shards by the low three NIBBLES of discId1** as
-  single hex digits: `/{id1 & 0xF}/{(id1 >> 4) & 0xF}/{(id1 >> 8) & 0xF}/`,
-  e.g. `/5/2/7/` for `0x0019e725` — not cumulative substrings like
-  `/5/25/725/`. Fixed in 0.0.4; the live-confirmed URL is pinned in
-  `test/accuraterip_protocol_test.dart`.
+- **The CRC multiplier is the ABSOLUTE 1-based frame position, and
+  the first-track skip is 2939 frames — not 2940.** The reference
+  (`compute_checksums()` in `src/accuraterip-checksum.c`) increments
+  `MulBy` over every frame and only gates *accumulation* on
+  `MulBy >= 2940`. So on track 1 the first counted frame is index
+  2939 with multiplier 2940; the multiplier never restarts at the
+  window start. The last-track bound is a true count (drop the final
+  2940 frames), hence the asymmetry — `accurateRipSkipFrames` is a
+  1-based *position* threshold at the head and a *count* at the tail.
+  Releases up to 0.0.3 skipped 2940 and restarted the multiplier at
+  1, so track 1 of every disc failed to verify. Fixed in 0.0.4 and
+  pinned by `test/accuraterip_crc_reference_test.dart`, which
+  differentially tests against a line-by-line transliteration of the
+  C. That oracle is load-bearing — do not rewrite it to resemble our
+  production loop, and do not "simplify" the off-by-one away.
+  Cross-checked against the real `accuraterip-checksum` binary (v2.0)
+  via `tool/crosscheck_reference.dart`: 60/60 agree.
+- **One deliberate divergence from the reference: a LAST track
+  shorter than the skip window.** The C `AR_CRCPosCheckTo` is a
+  `uint32_t`, so `len - 2940` underflows for a short final track and
+  the `MulBy <= To` gate then admits *every* sample — the reference
+  returns the full, unskipped checksum. We clamp to an empty window
+  and return 0. This is unreachable on a real CD (Red Book minimum
+  track length is 4 seconds = 176 400 frames, sixty times the skip
+  window), so bug-compatibility buys nothing. Pinned by a test in
+  `accuraterip_crc_reference_test.dart` and skipped explicitly by the
+  cross-check tool. If you ever make the CRC bug-compatible here,
+  change all three together.
+- **The lookup URL's three path components are SINGLE hex digits.**
+  They are the last, second-to-last, and third-to-last hex digits of
+  `discId1`, one character each — `0000f21c` → `c/1/2`. They are not
+  growing substrings (`c/1c/21c`), which is what the builder emitted
+  up to 0.0.3 and which 404s on the live server. Fixed in 0.0.4;
+  pinned by a golden test asserting the exact path of the committed
+  fixture, which is confirmed to return HTTP 200 in production.
+  Reference: `accuraterip_path()` in `whipper/image/table.py`.
+- **The AccurateRip disc IDs use RAW sector offsets — no 150-sector
+  lead-in bias.** `discId1` is the plain sum of the track start
+  offsets plus the lead-out; `discId2` is the same sum weighted by
+  the 1-based track index, with a zero offset (always track 1)
+  contributing 1 rather than 0. The 150-sector lead-in bias is a
+  FreeDB/CDDB convention and belongs **only** in `cddbDiscId`.
+  Releases up to 0.0.3 biased all three IDs by 150, which made every
+  lookup URL 404; fixed in 0.0.4 and pinned by the golden disc-ID
+  test that reproduces the fixture filename from sample counts. Do
+  not reintroduce the bias into `discId1` / `discId2`. Reference:
+  `accuraterip_ids()` in `whipper/image/table.py`.
 - **Reference implementations consulted:**
   [whipper](https://github.com/whipper-team/whipper) (Python,
   GPL-3.0) and
@@ -190,6 +214,7 @@ lib/
 test/
   accuraterip_crc_test.dart          # synthetic PCM, pinned arithmetic
   accuraterip_crc_differential_test.dart # io vs web bit-equivalence (load-bearing)
+  accuraterip_crc_reference_test.dart # differential vs transliterated C (load-bearing)
   accuraterip_disc_id_test.dart      # known-disc sample counts
   accuraterip_protocol_test.dart     # URL shape + hand-built binary fixtures
   accuraterip_client_test.dart       # stubbed fetcher
@@ -275,6 +300,7 @@ dart test test/accuraterip_crc_test.dart              # single test file
 dart test test/accuraterip_crc_test.dart -n 'v1 vs v2 divergence' # single test by name
 dart test -p chrome                                   # exercises the web CRC path for real
 dart run example/compute_crc.dart
+dart run tool/crosscheck_reference.dart   # needs the accuraterip-checksum binary
 dart pub publish --dry-run                            # must report 0 warnings
 ```
 
