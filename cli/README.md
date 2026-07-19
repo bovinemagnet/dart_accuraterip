@@ -10,18 +10,17 @@ parsing and `dart:io`'s built-in `HttpClient`).
 
 ## Installation
 
-```sh
-dart pub global activate dart_accuraterip_cli
-```
-
-This puts `dart-accuraterip` on your `PATH` (assuming
-`$HOME/.pub-cache/bin` is already there).
-
-For local development against a checkout of the repo:
+The CLI is not yet published to pub.dev. Activate it from a checkout
+of the repository:
 
 ```sh
 dart pub global activate --source path ./cli
 ```
+
+This puts `dart-accuraterip` on your `PATH` (assuming
+`$HOME/.pub-cache/bin` is already there). Once the CLI is published,
+`dart pub global activate dart_accuraterip_cli` will be the standard
+install path.
 
 ## Usage
 
@@ -107,10 +106,11 @@ FLAC support inside this CLI is planned for a later round.
 
 ## Platform support
 
-Dart VM only (macOS, Windows, Linux) — the CLI reads files and
-talks HTTP via `dart:io`. The underlying library itself runs on
-every Dart platform, including dart2js / dart2wasm, since 0.0.3;
-see the main library's README for the platform-support matrix.
+Dart VM only (Linux, macOS, Windows). The CLI uses `dart:io` for
+file reads and the built-in `HttpClient`, so it cannot run on the
+web. The underlying [`dart_accuraterip`](https://pub.dev/packages/dart_accuraterip)
+library itself is fully web-safe as of 0.0.3 — see the main
+README's platform-support matrix.
 
 ## Licence
 
