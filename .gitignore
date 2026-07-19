@@ -23,4 +23,5 @@ doc/api/
 .idea
 .vscode
 .claude
+.codex
 .DS_Store
