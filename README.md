@@ -10,6 +10,12 @@ database lookup for CD ripping and verification tools.
 
 [ar]: https://www.accuraterip.com/
 
+📖 **[Full documentation](https://bovinemagnet.github.io/dart_accuraterip/)**
+— guides, protocol reference, troubleshooting, and the command-line
+tool. Source under [`src/docs/`](src/docs/); see
+[Building these docs](https://bovinemagnet.github.io/dart_accuraterip/dart-accuraterip/building-the-docs.html)
+to preview it locally.
+
 **Zero runtime dependencies.** The HTTP client accepts an injected
 fetcher callback, so you can bring any HTTP library
 (`package:http`, `package:dio`, a Flutter `Client`, or a custom

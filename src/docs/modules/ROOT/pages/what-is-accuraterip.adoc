@@ -1,0 +1,132 @@
+= What AccurateRip is
+:description: The AccurateRip database, pressings, confidence, and why a client must try two CRC versions against every entry.
+:keywords: accuraterip, disc pressing, confidence, crc v1, crc v2, protocol
+
+https://www.accuraterip.com/[AccurateRip] is a community-maintained
+database that answers one question: does this CD rip contain exactly
+the same audio samples as everyone else's rip of the same disc?
+
+== The problem it solves
+
+Ripping a CD is not always a clean, deterministic read. Drive
+firmware, jitter correction, offset errors, and scratched or
+marginal discs can all cause a rip to silently differ from the
+audio actually pressed onto the disc, without any read error being
+reported. There is no way to tell, from a single rip alone, whether
+it is accurate.
+
+AccurateRip solves this by crowd-sourcing the comparison. Every
+track is reduced to a single checksum (a CRC). Rippers submit their
+checksums to a central database, keyed by the disc's structure. When
+enough independent rips of the same pressing produce the *same*
+checksum, that checksum can be trusted — and any later rip that
+reproduces it is confirmed bit-accurate against the crowd.
+
+This library computes the checksums and speaks the lookup protocol.
+It does not submit results — see <<lookup-only>>.
+
+== Pressings, and why a track has more than one entry
+
+The same album title can exist as several distinct **pressings** —
+different manufacturing runs, regional releases, or reissues, each
+with a slightly different disc layout or mastering. AccurateRip
+identifies a specific pressing by a disc ID derived from the track
+layout (see xref:disc-id.adoc[Computing a disc ID]), and a database
+lookup can return checksums for *several* pressings that happen to
+share that disc ID.
+
+That is why `AccurateRipTrackResult.entries` is a list, not a single
+value: each `AccurateRipEntry` is one pressing's submitted checksum
+for that track, and your rip only needs to match one of them.
+
+== Confidence
+
+Each entry carries a `confidence` value — the number of independent
+submitters whose rip produced that exact checksum for that pressing.
+A confidence of 1 means exactly one other rip agrees with the stored
+checksum; a confidence of 50 means fifty independent rips agree.
+Higher confidence is stronger evidence that the stored checksum is
+the *correct* one for that pressing, but it says nothing about
+*your* rip until you compare your own computed checksum against it.
+
+== One CRC per entry, but two versions to try
+
+[IMPORTANT]
+====
+This is the single most important thing to understand before writing
+code against this library: **the database stores exactly one CRC per
+entry, but there are two incompatible ways to compute it.**
+====
+
+AccurateRip has gone through two checksum algorithms:
+
+* **v1** — the original algorithm.
+* **v2** — a revised algorithm that handles 32-bit overflow
+  differently, used by newer rippers.
+
+A submitted entry stores whichever CRC the submitting ripper
+computed — an older ripper's submission holds a v1 CRC, a newer
+ripper's submission holds a v2 CRC. The wire format gives no
+indication of which version any given entry used, and there is no
+per-entry v1/v2 pair to disambiguate.
+
+Consequently, a client cannot know in advance which algorithm to
+use. The correct approach — and the one this library is built
+around — is to compute **both** `computeArV1` and `computeArV2` for
+your ripped track locally, then check each candidate against the
+entry's single `crc` field. `AccurateRipEntry.matches(computedV1:,
+computedV2:)` is the canonical helper for this comparison; see
+xref:verifying-a-rip.adoc[] for the full workflow.
+
+Entries also carry a `frame450Crc` field, a checksum over only the
+first 450 stereo frames. This is not a v1/v2 pair either — it is a
+separate value, used by tools such as CUETools to detect drive read
+offset, and is often zero on older pressings.
+
+== The lead-in/lead-out skip
+
+Optical drives disagree slightly on exactly where a track's audio
+begins and ends near its boundaries, because of read-offset
+differences between drive models. To keep checksums comparable
+across different drives, AccurateRip excludes a fixed window of
+{skip-frames} frames from the very start of the first track and the
+very end of the last track before computing the checksum. Interior
+tracks, and the interior boundaries of the first and last track, are
+not affected.
+
+This is why `computeArV1` and `computeArV2` take `isFirstTrack` and
+`isLastTrack` flags — they need to know when to apply the skip. Get
+this wrong and every checksum for the affected track will disagree
+with the database, even for a perfect rip.
+
+== An undocumented, reverse-engineered protocol
+
+AccurateRip has never published an official protocol specification.
+Everything this library knows about the wire format — chunk layout,
+disc-ID arithmetic, and the lookup URL structure — was reverse
+engineered by the open-source ripping community and cross-checked
+against two independent implementations:
+
+* https://github.com/whipper-team/whipper[whipper] (Python, GPL-3.0)
+* https://github.com/gchudov/cuetools.net[CUETools.NET] (C#)
+
+Where those two projects agree, this library follows them. Where
+byte-for-byte behaviour mattered, it is pinned by a golden test
+against a real captured database response redistributed from
+whipper.
+
+[[lookup-only]]
+== A lookup service only
+
+This library only reads from AccurateRip. It builds lookup URLs and
+parses responses; it does not implement checksum *submission*. If
+you want your rips to contribute to the database, use an existing
+submission-capable ripper (such as whipper itself) for that step.
+
+== Where next
+
+* xref:installation.adoc[] to add the package to a project.
+* xref:quick-start.adoc[] for a five-minute walkthrough.
+* xref:verifying-a-rip.adoc[] for the full verification workflow.
+* xref:wire-format.adoc[] for the exact byte layout, if you are
+  implementing your own parser or debugging a mismatch.

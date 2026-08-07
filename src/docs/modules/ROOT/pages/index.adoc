@@ -1,0 +1,88 @@
+= {project-name}
+:description: Pure-Dart AccurateRip v1/v2 CRC computation, disc-ID math, and database lookup for CD ripping and verification tools.
+:keywords: accuraterip, dart, flutter, cd ripping, crc, checksum, audio verification
+
+{project-name} is a pure-Dart library for computing AccurateRip v1 and v2
+checksums, deriving AccurateRip disc IDs, and querying the AccurateRip
+database to confirm that a CD rip is bit-accurate.
+
+It is aimed at people building CD-ripping tools, media-library
+applications, and archival pipelines in Dart or Flutter — anyone who
+needs to answer the question "does this rip match what everyone else
+got from the same pressing?" without reimplementing the AccurateRip
+wire protocol from scratch.
+
+TIP: New to AccurateRip itself, not just this library?
+Start with xref:what-is-accuraterip.adoc[].
+
+== Features
+
+* **AccurateRip v1 and v2 CRC** over raw PCM (16-bit signed
+  little-endian, stereo interleaved), with the standard
+  {skip-frames}-frame lead-in/lead-out skip on the first and last
+  track, verified bit-for-bit against EAC rip logs and the live
+  database.
+* **WAV input helpers** — `extractPcmFromWav`, `computeArV1FromWav`,
+  and `computeArV2FromWav` walk a RIFF/WAVE byte buffer and run the
+  CRC in a single call, tolerant of extra `LIST`/`INFO`/`fact`
+  chunks and truncated trailing data. `parseWavFormat` and
+  `WavFormat` expose a Red Book CD-DA (16-bit stereo 44.1 kHz)
+  validity check for your own pipelines.
+* **Disc-ID computation** from per-track sample counts, producing
+  `discId1`, `discId2`, and the legacy `cddbDiscId`.
+* **URL builder** for the AccurateRip HTTP database lookup.
+* **Binary response parser** for the AccurateRip chunked reply
+  format, aggregating multiple pressings per track, with a
+  canonical `AccurateRipEntry.matches(computedV1:, computedV2:)`
+  verification helper.
+* **`AccurateRipClient`** convenience wrapper with an injectable
+  fetcher so you can plug in any HTTP layer in a couple of lines.
+
+== Zero runtime dependencies
+
+The library never forces a transport library onto your dependency
+tree. `AccurateRipClient` accepts an injected fetcher callback —
+`Future<Uint8List> Function(Uri url)` — so you bring whichever HTTP
+client suits your project: `package:http`, `package:dio`, a Flutter
+`Client`, or a plain stub in tests.
+
+NOTE: `package:http` appears only as a *dev* dependency of this
+repository, used by `example/query_disc.dart`. It is never pulled
+in transitively by consumers of the library.
+
+The same design keeps the library usable everywhere Dart runs. The
+CRC routines switch implementation at compile time via a
+conditional export, so the same public API works unchanged on the
+Dart VM, Flutter native, and Flutter Web.
+
+.Library architecture
+[mermaid,target=library-architecture,format=svg]
+....
+include::example$library-architecture.mmd[]
+....
+
+== Where to go next
+
+xref:what-is-accuraterip.adoc[What AccurateRip is]::
+The AccurateRip database, confidence, pressings, and why this
+library computes two checksum versions for every track.
+
+xref:installation.adoc[Installation]::
+Add the package to a Dart or Flutter project.
+
+xref:quick-start.adoc[Quick start]::
+A five-minute walkthrough from a WAV file to a verified match.
+
+xref:verifying-a-rip.adoc[Verifying a rip end to end]::
+The full workflow: disc ID, database lookup, and per-track
+verification.
+
+xref:cli:index.adoc[the CLI]::
+`{cli-command}`, a command-line tool built on this library for
+computing CRCs, disc IDs, and running verification from a
+terminal or a script.
+
+TIP: Working with FLAC rather than WAV? The companion package
+https://pub.dev/packages/dart_metaflac[`dart_metaflac`] (also by
+Paul Snow) handles FLAC metadata reading and writing, and pairs
+naturally with this library for a full rip-and-verify pipeline.

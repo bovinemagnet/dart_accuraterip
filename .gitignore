@@ -25,3 +25,9 @@ doc/api/
 .claude
 .codex
 .DS_Store
+
+# Antora documentation build (src/docs -> build/site)
+build/site/
+.antora-cache/
+node_modules/
+package-lock.json

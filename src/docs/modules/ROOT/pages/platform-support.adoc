@@ -1,0 +1,117 @@
+= Platform support
+:description: Which parts of {project-name} run on which Dart platforms, why the CRC has two implementations, and why the CLI is VM-only.
+:keywords: AccurateRip, platform support, dart2js, dart2wasm, Flutter Web, conditional export, CRC, CLI
+
+Every surface of the {project-name} library runs on every Dart platform: Dart VM, Flutter native, Flutter Web, `dart2js` and `dart2wasm`.
+The command-line tool is the one exception — it is native-only, for reasons explained below.
+
+== Platform matrix
+
+The table below covers the full public surface of the library.
+"Dart VM / Flutter native" means the Dart VM itself, plus Flutter's native targets (Android, iOS, macOS, Windows and Linux desktop).
+"Flutter Web / dart2js / dart2wasm" covers Flutter Web and any plain Dart-to-JavaScript or Dart-to-WebAssembly compile target.
+
+[cols="3,1,1"]
+|===
+| Surface | Dart VM / Flutter native | Flutter Web / dart2js / dart2wasm
+
+| `computeArV1` / `computeArV2`
+| yes
+| yes
+
+| `computeArV1FromWav` / `computeArV2FromWav`
+| yes
+| yes
+
+| `extractPcmFromWav`
+| yes
+| yes
+
+| `parseWavFormat` / `WavFormat`
+| yes
+| yes
+
+| `AccurateRipDiscId`
+| yes
+| yes
+
+| `buildAccurateRipUrl`
+| yes
+| yes
+
+| `parseAccurateRipResponse`
+| yes
+| yes
+
+| `AccurateRipClient`
+| yes
+| yes
+|===
+
+See xref:api-reference.adoc[] for the full signature catalogue behind each of these names.
+
+== Why there are two CRC implementations
+
+`computeArV1` and `computeArV2` are backed by two separate source files, selected at *compile time* by a conditional export in `lib/dart_accuraterip.dart`:
+
+[source,dart]
+----
+export 'src/accuraterip_crc_io.dart'
+    if (dart.library.js_interop) 'src/accuraterip_crc_web.dart';
+----
+
+* On the Dart VM and Flutter native targets (Android, iOS, macOS, Windows and Linux desktop), `lib/src/accuraterip_crc_io.dart` is used.
+  It performs a single native 64-bit multiply per sample.
+  Dart's native `int` is a genuine 64-bit integer on these targets, so this path is both correct and the fastest available.
+* Under `dart2js` and `dart2wasm` (Flutter Web, or any Dart-to-JavaScript compile target), `lib/src/accuraterip_crc_web.dart` is used instead.
+  It performs a split 16-bit multiply.
+
+TIP: The dispatch is invisible to consumers.
+Both files export exactly the same public API — `computeArV1`, `computeArV2` and `accurateRipSkipFrames` — so calling code never needs to know which one is active.
+
+=== Why JavaScript needs a split multiply
+
+In JavaScript, `int` is represented as a `double`, which has only 53 bits of integer precision (the IEEE‑754 double mantissa).
+The AccurateRip v2 CRC's inner step multiplies a 32-bit sample by a position multiplier that grows up to roughly 22 bits wide, producing a product up to roughly 54 bits wide.
+That is wide enough to silently lose its low bit under JavaScript's 53-bit precision if the multiplication were done as one native multiply.
+
+`lib/src/accuraterip_crc_web.dart` avoids this by decomposing both the sample and the multiplier into two 16-bit halves, performing four narrow multiplies — each producing at most a 32-bit product, safely representable as a `double` — and reassembling the full 64-bit product from the four parts.
+Every intermediate value stays comfortably under 2^53, so no precision is lost anywhere in the computation.
+
+== Bit-for-bit equivalence is tested, not just claimed
+
+A differential test, `test/accuraterip_crc_differential_test.dart`, runs both implementations side by side on the Dart VM and asserts bit-identical output across:
+
+* over 350 randomly generated PCM buffers of varying length,
+* a hand-pinned fixture at the 32-bit overflow boundary, and
+* every first-track / last-track skip permutation.
+
+IMPORTANT: This test is load-bearing.
+The native path must never be "optimised" in a way that changes its output, because the differential test pins exact equivalence between the two implementations — a regression there means the web build silently starts disagreeing with the native build.
+
+== Performance note
+
+The web (split-multiply) path is roughly two to three times slower than the native path in raw arithmetic terms.
+In practice this is imperceptible, because the CRC loop is memory-bandwidth bound — it streams through the whole PCM buffer exactly once — rather than compute bound.
+The cost of the multiply itself is not the dominant factor on either path.
+
+== WAV wrappers inherit the same platform story
+
+`lib/src/wav.dart` uses the identical conditional import to pick the matching CRC implementation for its `FromWav` wrappers, so `computeArV1FromWav` and `computeArV2FromWav` are correct and web-safe on exactly the same terms as the lower-level CRC functions.
+See xref:crc.adoc[] and xref:wav.adoc[] for guide-level walkthroughs of these functions.
+
+== The CLI is VM-only
+
+The `{cli-command}` command-line tool, from the separate `{cli-name}` package, is a Dart VM / native-only tool.
+It is *not* web-deployable.
+
+This is a property of the CLI wrapper, not of the underlying library: the CLI uses `dart:io` for file access and networking (`HttpClient`), and `dart:io` has no web implementation.
+The library itself is pure Dart and works everywhere, per the matrix above — nothing in `dart_accuraterip` itself is VM-only.
+
+See xref:cli:index.adoc[] for the CLI's own documentation.
+
+== See also
+
+* xref:crc.adoc[] — computing v1 and v2 CRCs
+* xref:wav.adoc[] — reading WAV input
+* xref:api-reference.adoc[] — the full public API surface

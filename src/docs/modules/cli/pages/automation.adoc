@@ -1,0 +1,79 @@
+= Scripting and CI
+:description: Recipes for wiring dart-accuraterip into shell scripts and continuous integration, including a caution about hammering the AccurateRip server.
+:keywords: dart-accuraterip, cli, automation, ci, scripting, github actions
+
+`{cli-command}` is designed to be scripted: predictable xref:exit-codes.adoc[exit codes], stdout/stderr separation, and no interactive prompts.
+This page collects recipes for the common cases.
+
+== Verify several album directories in a loop
+
+[source,bash]
+----
+#!/usr/bin/env bash
+set -euo pipefail
+
+status=0
+for dir in rips/*/; do
+  echo "== ${dir} =="
+  if ! {cli-command} verify "${dir}"track*.wav; then
+    echo "FAILED: ${dir}" >&2
+    status=1
+  fi
+done
+
+exit "${status}"
+----
+
+This keeps going after a failure in one album so you get a full report, then reports the aggregate failure at the end via the exit code.
+
+== Gate a rip pipeline on the exit status
+
+If you'd rather stop at the first bad rip — for example, straight after a ripper finishes a disc — check the status directly:
+
+[source,bash]
+----
+#!/usr/bin/env bash
+set -euo pipefail
+
+rip_disc.sh   # your own ripping step, produces track*.wav
+{cli-command} verify track*.wav
+echo "Rip verified, continuing to encode."
+encode_flac.sh
+----
+
+`set -e` means the script stops automatically on `verify`'s non-zero exit — nothing downstream of a failed rip runs.
+
+== GitHub Actions step
+
+[source,yaml]
+----
+- name: Verify rip against AccurateRip
+  run: |
+    dart pub global activate {cli-name}
+    dart-accuraterip verify rips/track*.wav
+----
+
+The step fails the job automatically on a non-zero exit code, which is exactly xref:exit-codes.adoc[what `verify` returns] on any mismatch.
+
+== Capture output to a log
+
+Keep the human-readable table and any errors for later inspection, independently of the pass/fail decision:
+
+[source,bash]
+----
+{cli-command} verify track*.wav >verify.log 2>verify.err
+status=$?
+cat verify.log
+exit "${status}"
+----
+
+== Don't hammer the AccurateRip server
+
+[WARNING]
+====
+`verify` and `query` each make one network request per disc.
+When verifying a large library — hundreds or thousands of albums — running `verify` unconditionally on every pass will re-query the same discs repeatedly and can put unwelcome load on the AccurateRip server.
+
+Cache disc-ID → result mappings yourself (a simple file or SQLite keyed on `discId1`/`discId2`/`cddbDiscId` is enough) and skip the lookup for discs you've already verified successfully.
+Only re-query when a rip has actually changed.
+====

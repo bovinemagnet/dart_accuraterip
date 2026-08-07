@@ -1,0 +1,49 @@
+= Licence
+:description: The GPL-3.0 licence terms for dart_accuraterip and what they mean in practice for consumers of the package.
+:keywords: licence, license, GPL-3.0, GPL, copyleft, open source, whipper fixture
+
+{project-name} is released under the GNU General Public License version 3.0 (GPL-3.0).
+
+== GPL-3.0, in plain terms
+
+This section is a plain-language summary for a Dart or Flutter developer evaluating whether to depend on {project-name}.
+It is not legal advice.
+If you have a specific compliance question, read the full licence text linked below or consult your own counsel.
+
+GPL-3.0 is a *copyleft* licence.
+If you distribute a modified version of this package's own source code, that modified version must also be licensed under GPL-3.0, and its source must be made available to whoever you distribute it to.
+
+The part that matters most for application authors is how GPL-3.0 treats linking.
+Dart and Flutter typically compile dependencies directly into the resulting application — there is no separate, dynamically-loaded library boundary the way a shared `.so` might provide.
+Because of that, linking {project-name} into your application makes your application, as distributed, subject to the GPL's terms.
+
+In practice this generally means: if you distribute an application that depends on {project-name} to others, that application should itself be released under a GPL-compatible licence.
+
+This is a materially different, stronger obligation than a permissive licence such as MIT, BSD, or Apache-2.0 would impose.
+Weigh this deliberately before adding {project-name} as a dependency of a proprietary or closed-source product.
+
+TIP: If GPL-3.0's obligations do not suit your project, {project-name} is not the package for you — there is no dual-licensing option.
+
+== Companion package
+
+This licence choice matches the author's companion package, `dart_metaflac`, which handles FLAC metadata reading and writing and is commonly used alongside {project-name} in CD-ripping tooling.
+Both packages are GPL-3.0, so a project combining them does not introduce any additional licence conflict beyond the one described above.
+
+== The redistributed test fixture
+
+The golden test fixture committed under `test/fixtures/` — a captured, real AccurateRip response named `dBAR-002-0000f21c-00027ef8-05021002.bin` — is redistributed from the https://github.com/whipper-team/whipper[whipper] project under GPL-3.0.
+
+See xref:wire-format.adoc[] for what this fixture contains and how it is used to pin the response parser against a real-world payload.
+
+== Full licence text
+
+The complete, authoritative licence text is kept in the repository: link:{repo-url}/blob/main/LICENSE[LICENSE].
+
+[NOTE]
+====
+AccurateRip is a third-party database and service operated independently at https://www.accuraterip.com[accuraterip.com].
+
+{project-name} is an independent, unofficial client implementation built from reverse-engineering the wire protocol — see xref:wire-format.adoc[] for details.
+
+This project is not affiliated with, endorsed by, or officially connected to AccurateRip or its operators in any way.
+====

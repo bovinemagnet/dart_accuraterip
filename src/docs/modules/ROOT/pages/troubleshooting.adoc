@@ -1,0 +1,177 @@
+= Troubleshooting
+:description: Problem/cause/fix guidance for the most common issues encountered when using {project-name} — null lookups, CRC mismatches, 404s, WAV validation errors, and disc-ID pitfalls.
+:keywords: AccurateRip, troubleshooting, errors, CRC mismatch, 404, WavFormat, ArgumentError, FormatException
+
+This page collects the problems most often hit when using {project-name}, organised as symptom, cause and fix.
+Each entry names the exact behaviour you will see so you can jump straight to the relevant one.
+
+.`AccurateRipClient.queryDisc` returns `null`
+====
+*Cause*
+
+A `null` result from `queryDisc` is the collapsed outcome of *any* failure inside it.
+That includes the injected fetcher throwing (network error, DNS failure, or an HTTP error status, depending on how the fetcher was written), the fetcher returning an empty byte buffer (the documented signal for "not found" / a 404 response), or the response bytes failing to parse as a valid AccurateRip chunk stream.
+`queryDisc` deliberately does not distinguish between these cases.
+
+*Fix*
+
+To tell them apart, call xref:api-reference.adoc[`buildAccurateRipUrl`] and `parseAccurateRipResponse` directly instead of going through `AccurateRipClient`, and inspect the raw fetch result and any thrown exception yourself:
+
+[source,dart]
+----
+final url = buildAccurateRipUrl(discId);
+try {
+  final bytes = await myFetcher(url);
+  if (bytes.isEmpty) {
+    print('Not found: empty response for $url');
+  } else {
+    final result = parseAccurateRipResponse(bytes);
+    print(result == null ? 'Unparseable response' : 'Parsed OK');
+  }
+} catch (e) {
+  print('Fetch failed: $e');
+}
+----
+
+Also check that the disc is actually pressed and known to AccurateRip — many small-label or self-released discs simply are not in the database.
+====
+
+.Lookup returns entries but nothing matches (`entry.matches(...)` is always `false`)
+====
+*Cause*
+
+Each `AccurateRipEntry` stores exactly one primary `crc` field of unknown submitted version — see xref:wire-format.adoc[] for the full explanation of why.
+A common mistake is comparing only `computeArV1` output, or only `computeArV2` output, against `entry.crc` instead of trying both.
+
+*Fix*
+
+Always compute *both* `computeArV1` and `computeArV2` for the track and pass both into `entry.matches`:
+
+[source,dart]
+----
+final matched = entry.matches(
+  computedV1: computeArV1(pcmData, isFirstTrack: isFirst, isLastTrack: isLast),
+  computedV2: computeArV2(pcmData, isFirstTrack: isFirst, isLastTrack: isLast),
+);
+----
+
+A mismatch after trying both means the actual rip differs from the database entry — for example a drive offset issue or read errors — not necessarily a bug in version detection.
+====
+
+.Every lookup URL 404s
+====
+*Cause*
+
+This exact symptom was caused by two now-fixed bugs present up to library version 0.0.3: the disc-ID computation biased `discId1` and `discId2` by 150 sectors, a CDDB-only convention that never belonged on the AccurateRip IDs, and the URL builder emitted cumulative hex substrings (`c/1c/21c`) for the path shards instead of single hex digits (`c/1/2`).
+Both were fixed in library 0.0.4.
+
+*Fix*
+
+Upgrade to {lib-version} or later.
+If lookups still 404 after upgrading, consult xref:wire-format.adoc[] and verify the disc really is a known AccurateRip pressing — some independent or self-released discs are genuinely absent from the database and 404 legitimately.
+====
+
+.`ArgumentError` thrown from `computeArV1FromWav` / `computeArV2FromWav`
+====
+*Cause*
+
+These wrappers validate the WAV's `fmt ` chunk with `WavFormat.requireRedBookCdAudio()` before checksumming, and throw `ArgumentError` — naming every non-conforming field: format code, channel count, sample rate, bits per sample — when the file is not 16-bit stereo 44.1 kHz integer PCM.
+AccurateRip is only defined for Red Book CD-DA audio, so checksumming anything else would silently produce a plausible-looking but meaningless CRC.
+
+*Fix*
+
+If you deliberately want to checksum a non-conforming WAV, for your own diagnostic purposes, bypass the check by calling the lower-level functions directly:
+
+[source,dart]
+----
+final crc = computeArV1(
+  extractPcmFromWav(wavBytes),
+  isFirstTrack: isFirst,
+  isLastTrack: isLast,
+);
+----
+
+Otherwise, re-export or transcode the source audio to Red Book format first.
+See xref:wav.adoc[].
+====
+
+.`FormatException` thrown from `extractPcmFromWav` / `parseWavFormat`
+====
+*Cause*
+
+The input bytes are not a well-formed RIFF/WAVE stream: missing the `RIFF....WAVE` signature at the start, no `data` chunk found (for `extractPcmFromWav`), or no `fmt ` chunk, or a `fmt ` chunk shorter than 16 bytes (for `parseWavFormat`).
+
+*Fix*
+
+Confirm the file is actually a WAV — not, for example, an MP3 or FLAC file renamed with a `.wav` extension — and that it was not truncated during transfer.
+
+NOTE: `extractPcmFromWav` is tolerant of a truncated *trailing* `data` chunk — it returns whatever PCM remains rather than throwing.
+The exception only fires for a genuinely malformed header.
+====
+
+.First-track CRC mismatch (track 1 fails to verify even though later tracks pass)
+====
+*Cause*
+
+Two possibilities, in order of likelihood:
+
+* A stale library version. Up to 0.0.3, `computeArV1`/`computeArV2` incorrectly restarted the multiplier at 1 after skipping the first-track lead-in and skipped 2940 samples instead of 2939, which broke every track-1 CRC. Fixed in 0.0.4 and pinned by a reference test transliterated line-by-line from the C implementation.
+* The caller passed the wrong `isFirstTrack` flag. `isFirstTrack` should be `true` only for the physically first track on the disc — the skip window is asymmetric, with 2939 leading samples dropped on the first track versus a full {skip-frames}-frame *count* dropped from the last track.
+
+*Fix*
+
+Upgrade to {lib-version} or later, and double-check the `isFirstTrack`/`isLastTrack` flags are wired to actual track position, not e.g. always `true` or always `false`.
+See xref:crc.adoc[].
+====
+
+.Wrong track order producing a bogus disc ID
+====
+*Cause*
+
+`AccurateRipDiscId.fromTrackSampleCounts` takes `trackSampleCounts` as a plain ordered `List<int>` — it trusts the caller's ordering completely and has no way to detect that tracks were supplied out of physical disc order, for example sorted alphabetically by filename, where `track10.flac` sorts before `track2.flac`.
+A shuffled order produces a completely different, and wrong, `discId1`, `discId2` and `cddbDiscId`, which then either 404s or matches the wrong pressing.
+
+*Fix*
+
+Sort track sample counts by actual track *number* before calling `fromTrackSampleCounts`, not by filename string order:
+
+[source,dart]
+----
+tracks.sort((a, b) => a.trackNumber.compareTo(b.trackNumber));
+final discId = AccurateRipDiscId.fromTrackSampleCounts(
+  tracks.map((t) => t.sampleCount).toList(),
+);
+----
+
+See xref:disc-id.adoc[].
+====
+
+.Drive read-offset differences causing a whole-disc mismatch
+====
+*Cause*
+
+Different CD-ROM drive models read audio data at slightly different physical sample offsets — a hardware characteristic, typically plus or minus tens to low hundreds of samples.
+A rip from a drive with an uncorrected offset produces CRCs that are consistently, uniformly wrong across every track versus the database, which stores CRCs computed at offset-corrected sample boundaries, even though the audio content is otherwise bit-perfect.
+This is not a bug in {project-name}.
+
+*Fix*
+
+Use `entry.frame450Crc`, a CRC over only the first 450 stereo frames of the track, the way CUETools does: compare it against variously offset-shifted local recomputations to detect and determine your drive's read offset, then apply that correction before ripping.
+{project-name} exposes `frame450Crc` for exactly this purpose but does not perform offset detection itself.
+====
+
+.Hidden or data tracks throwing off disc ID / track count
+====
+*Cause*
+
+Some discs have a hidden track one audio (HTOA) pregap segment, extra data tracks (mixed-mode/enhanced CDs), or non-standard track layouts.
+`AccurateRipDiscId.fromTrackSampleCounts` and the CRC functions assume you are supplying exactly the audio tracks in physical order with accurate sample counts — a data track's "sample count" is meaningless for CRC purposes and must be excluded, and a miscounted HTOA shifts every subsequent track's assumed sector offset.
+
+*Fix*
+
+Only pass audio-track sample counts, never data tracks, to `fromTrackSampleCounts`, and consult your ripping software's track layout/TOC parsing for the correct HTOA handling.
+{project-name} has no CD-TOC parsing of its own — it only consumes the sample counts you provide.
+====
+
+Not covered here? Search the existing issues, or open a new one, at {issues-url}.
+If you are looking to fix the problem yourself rather than report it, see xref:contributing.adoc[] for how to get set up.

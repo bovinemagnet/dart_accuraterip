@@ -1,0 +1,86 @@
+# Builds the Antora documentation site from src/docs and publishes
+# it to GitHub Pages.
+#
+# Enable once in the repository settings: Settings -> Pages ->
+# Build and deployment -> Source: "GitHub Actions". The site is then
+# served from https://bovinemagnet.github.io/dart_accuraterip/.
+#
+# Pull requests build the site but do not deploy, so a broken xref
+# or a missing page fails the check before it reaches main.
+#
+# Author: Paul Snow
+name: Docs
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/docs/**'
+      - 'antora-playbook.yml'
+      - 'package.json'
+      - '.github/workflows/docs.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'src/docs/**'
+      - 'antora-playbook.yml'
+      - 'package.json'
+      - '.github/workflows/docs.yml'
+  workflow_dispatch:
+
+# Allow the deploy job to publish to Pages using the OIDC token.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Never run two deployments at once; queue instead of cancelling so
+# a half-published site is not left behind.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Antora site
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Antora reads the working tree via `branches: HEAD`, but a
+          # full clone keeps edit_url and any future versioned
+          # branches working.
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install the Antora toolchain
+        run: npm install
+
+      # --fetch pulls the latest UI bundle rather than a cached copy;
+      # --log-failure-level=error turns a broken xref or a missing
+      # include into a failed check instead of a warning nobody reads.
+      # The playbook itself carries the forgiving local defaults.
+      - name: Build the site
+        run: npx antora --fetch --log-failure-level=error antora-playbook.yml
+
+      - name: Upload the Pages artefact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/site
+
+  deploy:
+    name: Deploy to GitHub Pages
+    # Only main deploys; pull requests stop after the build check.
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@v4

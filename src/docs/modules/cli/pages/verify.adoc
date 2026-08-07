@@ -1,0 +1,71 @@
+= `verify`
+:description: End-to-end verification of a WAV rip against the live AccurateRip database with the dart-accuraterip verify subcommand.
+:keywords: dart-accuraterip, cli, verify, verification, pass, fail
+
+`verify` is the flagship command — the reason most people reach for this CLI.
+Point it at a rip's WAV files and it tells you, per track, whether the rip matches what other people's drives produced for the same pressing.
+
+== Synopsis
+
+[source,console]
+----
+$ {cli-command} verify <file1.wav> <file2.wav> ...
+----
+
+Positional order is track order, exactly as for xref:disc-id.adoc[`disc-id`].
+
+== What it does
+
+For a full walkthrough of this pipeline with worked examples, see xref:ROOT:verifying-a-rip.adoc[].
+In outline, `verify`:
+
+. Loads every WAV file, validating each is Red Book CD-DA audio.
+. Computes the disc ID from the track sample counts and prints it.
+. Queries the live AccurateRip database for that disc ID.
+. Computes local AccurateRip v1 and v2 CRCs for every track, applying the correct `--first`/`--last` skip automatically for the first and last tracks.
+. For each track, checks whether either locally computed CRC equals any database entry's stored CRC, and reports the highest-confidence match.
+
+== Sample output
+
+[source,console]
+----
+$ {cli-command} verify track*.wav
+track  v1         v2         db match      max-conf  result
+-----  ---------  ---------  ------------  --------  ------
+   01   284fc705   dc77f9ab  v1 matched          12  PASS
+   02   9cc1f32e   dd97d2c3  v1 matched          20  PASS
+
+All tracks verified.
+----
+
+Reading the columns:
+
+`track`::
+1-based track number, in the order the WAV files were given.
+
+`v1` / `v2`::
+The locally computed AccurateRip v1 and v2 CRCs, as 8-character lowercase hex.
+
+`db match`::
+Which locally computed CRC matched the best database entry — `v1 matched`, `v2 matched`, or `none` if nothing matched.
+See xref:ROOT:wire-format.adoc[] for why a single database entry can only ever match one of the two.
+
+`max-conf`::
+The confidence value of the matching entry (how many AccurateRip submitters agree), or `--` when nothing matched.
+
+`result`::
+`PASS` when a match was found for the track, `FAIL` otherwise.
+
+== Reading PASS/FAIL
+
+A `PASS` on every track and the closing `All tracks verified.` line mean every track's checksum was seen before by another rip of the same pressing.
+A single `FAIL` — or a `One or more mismatches.` closing line — means at least one track's audio differs from what the database has on record, which usually points at a bad rip (drive offset, read errors, damaged disc) rather than a corrupt database entry.
+
+If the disc isn't in the AccurateRip database at all, `verify` prints `No entry in the AccurateRip database for this disc.` and exits non-zero — there is nothing to compare against.
+
+== Exit codes
+
+`0` when every track PASSes.
+`1` when any track FAILs, or when the disc has no database entry at all.
+`64` (`EX_USAGE`) on argument errors or an unreadable/non-Red-Book WAV.
+See xref:exit-codes.adoc[] for the full table and how to use the exit status in a pipeline.

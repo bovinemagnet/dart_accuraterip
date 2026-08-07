@@ -1,0 +1,57 @@
+%% Architecture overview of the dart_accuraterip pure-Dart library.
+%% Shows the single public entry point, the internal lib/src/ modules
+%% it re-exports, and how a consuming application injects its own
+%% HTTP fetcher — the library itself has zero runtime dependencies.
+flowchart TD
+    subgraph App["Your application"]
+        Consumer["Application code"]
+        Fetcher["HTTP fetcher<br/>package:http, package:dio, or a custom stub"]
+    end
+
+    subgraph PublicAPI["Public API — package:dart_accuraterip/dart_accuraterip.dart"]
+        Entry["Single export point<br/>re-exports the whole public surface"]
+    end
+
+    subgraph Internal["lib/src/ — internal modules"]
+        subgraph CRC["CRC computation (conditional export)"]
+            direction LR
+            CrcIO["accuraterip_crc_io.dart<br/>Dart VM / Flutter native<br/>64-bit multiply"]
+            CrcWeb["accuraterip_crc_web.dart<br/>dart2js / dart2wasm<br/>split 16-bit multiply"]
+        end
+        DiscId["accuraterip_disc_id.dart<br/>AccurateRipDiscId"]
+        Models["accuraterip_models.dart<br/>DiscResult / TrackResult / Entry"]
+        Protocol["accuraterip_protocol.dart<br/>URL builder + response parser"]
+        Wav["wav.dart<br/>RIFF/WAV walker + FromWav wrappers"]
+        Client["io/accuraterip_client.dart<br/>AccurateRipClient"]
+    end
+
+    Consumer --> Entry
+    Entry --> CRC
+    Entry --> DiscId
+    Entry --> Models
+    Entry --> Protocol
+    Entry --> Wav
+    Entry --> Client
+
+    Wav --> CRC
+    Client --> Protocol
+    Client --> Models
+
+    Fetcher -. "injected as AccurateRipFetcher<br/>(library has zero runtime deps)" .-> Client
+
+    CrcIO -. bit-identical output .- CrcWeb
+
+    classDef publicApi fill:#4a90d9,color:#ffffff,stroke:#2c5f8a,stroke-width:2px;
+    classDef internal fill:#f5f5f5,stroke:#999999,color:#333333;
+    classDef crcVariant fill:#fff3cd,stroke:#e0a800,color:#333333;
+    classDef app fill:#6abf69,color:#ffffff,stroke:#3d8b40,stroke-width:2px;
+
+    class Entry publicApi;
+    class DiscId,Models,Protocol,Wav,Client internal;
+    class CrcIO,CrcWeb crcVariant;
+    class Consumer,Fetcher app;
+
+    style App fill:#eef9ee,stroke:#3d8b40,stroke-width:1px;
+    style PublicAPI fill:#eaf2fb,stroke:#2c5f8a,stroke-width:1px;
+    style Internal fill:#fafafa,stroke:#999999,stroke-width:1px;
+    style CRC fill:#fffaf0,stroke:#e0a800,stroke-width:1px;

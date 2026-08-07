@@ -1,0 +1,108 @@
+= Computing v1 and v2 CRCs
+:description: How to compute AccurateRip v1 and v2 checksums over raw PCM with {project-name}, including the first/last-track skip window.
+:keywords: AccurateRip, CRC, checksum, PCM, dart
+
+The heart of {project-name} is a pair of pure functions that compute the AccurateRip v1 and v2 checksums of a track's decoded audio.
+This guide covers their exact contract, the lead-in/lead-out skip window, and the subtle asymmetry that makes first and last tracks behave differently.
+
+== Signatures
+
+[source,dart]
+----
+external int computeArV1(
+  Uint8List pcmData, {
+  bool isFirstTrack = false,
+  bool isLastTrack = false,
+});
+
+external int computeArV2(
+  Uint8List pcmData, {
+  bool isFirstTrack = false,
+  bool isLastTrack = false,
+});
+----
+
+Both functions return an unsigned 32-bit integer in the range `0..0xFFFFFFFF`, are pure (no I/O, no globals) and allocate nothing beyond a typed-data view over `pcmData` — safe to call in a hot loop over every track of a rip.
+
+== Required PCM layout
+
+`pcmData` must be raw PCM: 16-bit signed little-endian samples, stereo interleaved, at 44.1 kHz — the Red Book CD-DA format.
+Each stereo frame is 4 bytes (`left_16bit | (right_16bit << 16)` packed as a little-endian `uint32`), so `pcmData.lengthInBytes` must be a multiple of 4.
+Trailing bytes beyond the last complete frame are silently ignored.
+
+TIP: If you already have a `.wav` file rather than a raw PCM buffer, see xref:wav.adoc[] for `extractPcmFromWav` and the `FromWav` convenience wrappers, which handle the RIFF header for you.
+
+== The skip window: `isFirstTrack` and `isLastTrack`
+
+AccurateRip excludes a small window of frames at the very start of track 1 and the very end of the last track, because the lead-in/lead-out region of a disc is often unreadable or subject to drive-level error correction.
+The size of that window is the constant `accurateRipSkipFrames` (`= {skip-frames}`, five CD sectors of 588 frames each).
+
+[source,dart]
+----
+const int accurateRipSkipFrames = 5 * 588; // 2940
+----
+
+Pass `isFirstTrack: true` when computing the CRC of the first track on the disc, and `isLastTrack: true` for the last track.
+Both flags may be `true` at once for a single-track disc.
+Every other track on a multi-track disc passes neither flag.
+
+[IMPORTANT]
+====
+The head skip and the tail skip are **not** symmetric, and the difference is easy to get wrong:
+
+* The multiplier used in the checksum is the frame's **absolute 1-based position within the track** — it keeps counting up even across frames that end up excluded, it never restarts at the start of the counted window.
+* The reference algorithm only *accumulates* positions `>= accurateRipSkipFrames` (`>= 2940`). Because positions start at 1, that admits frame index `2939` onwards — so the first-track skip drops exactly **2939** leading frames, not 2940.
+* The last-track bound is a true frame *count*: the final **2940** frames are dropped.
+
+So `accurateRipSkipFrames` is a 1-based *position threshold* at the head of a track and a *count* at the tail — the same constant, two different meanings.
+====
+
+Releases of {project-name} up to 0.0.3 skipped 2940 frames at the head and restarted the multiplier at 1 for the counted window.
+Both mistakes together meant every first-track CRC was wrong before 0.0.4 — first tracks would never match the database even for a bit-perfect rip.
+This is fixed and pinned by a differential test against a line-by-line transliteration of the reference C implementation; see the "Wire format" reference page for the full history if you are auditing the maths yourself.
+
+.Skip window over a three-track disc
+[mermaid,target=crc-skip-window,format=svg]
+....
+include::example$crc-skip-window.mmd[]
+....
+
+== v1 vs v2: why they diverge
+
+Both algorithms multiply each frame's packed `uint32` sample by its absolute 1-based position and accumulate the products, but they differ in how much of each product they keep:
+
+* **v1** keeps only the low 32 bits of each product and sums them modulo 2^32^ — `crc = (crc + sample * position) & 0xFFFFFFFF`. Once a product overflows 32 bits, the high bits are simply discarded.
+* **v2** additionally folds the *upper* 32 bits of the 64-bit product back into the accumulator — `crc = (crc + low32(product) + high32(product)) & 0xFFFFFFFF`.
+
+For small products (early, quiet, or low-amplitude frames) v1 and v2 agree, because there is no overflow to fold back in.
+The two checksums diverge only once `sample * position` exceeds 2^32^ — which is why AccurateRip needs both: an older ripper submission stored a v1 CRC, a newer one stored v2, and there is no way to tell which from the response alone (see xref:lookup.adoc[]).
+Always compute both and check them against the database — that is exactly what `AccurateRipEntry.matches` does.
+
+[NOTE]
+====
+`computeArV2` uses native 64-bit integer arithmetic and is not safe on `dart2js` / `dart2wasm`, where Dart's `int` is backed by a JavaScript `double` with only 53 bits of integer precision.
+{project-name} handles this transparently: on web targets, `computeArV1` and `computeArV2` are backed by a split 16-bit multiply implementation that produces bit-identical results without ever exceeding 53 bits.
+You never need to choose an implementation yourself — the conditional export picks the right one for the platform you compile to.
+====
+
+== A deliberate divergence from the reference
+
+The reference C implementation (`AR_CRCPosCheckTo`) stores its tail bound in a `uint32_t`.
+For a last track shorter than the 2940-frame skip window, `len - 2940` underflows that unsigned integer and wraps to a huge value, so the "skip the tail" gate ends up admitting *every* frame — the reference silently returns the full, unskipped checksum instead of an error.
+
+{project-name} does not reproduce that underflow.
+When the skip window would be empty, `computeArV1` and `computeArV2` clamp the counted range to empty and return `0` rather than the unskipped checksum.
+
+NOTE: This divergence is unreachable on a real CD: the Red Book minimum track length is 4 seconds (176,400 frames), sixty times the 2940-frame skip window, so a track can never be short enough to trigger it outside of synthetic test data.
+
+== Empty input
+
+An empty (or all-skipped) `pcmData` produces `0` from both functions — there are no frames to accumulate, not an error.
+This falls naturally out of the loop bounds and needs no special-casing by callers.
+
+== See also
+
+* xref:wav.adoc[] — compute these CRCs directly from a `.wav` file.
+* xref:disc-id.adoc[] and xref:lookup.adoc[] — identify the disc and fetch its database entry to compare against.
+* xref:verifying-a-rip.adoc[] — the full end-to-end recipe.
+* xref:wire-format.adoc[] — the byte-level AccurateRip response format these CRCs are checked against.

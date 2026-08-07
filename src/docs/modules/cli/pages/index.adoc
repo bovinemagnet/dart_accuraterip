@@ -1,0 +1,44 @@
+= {cli-command}
+:description: Overview of the dart-accuraterip command-line tool: what it does, when to reach for it, and how it relates to the dart_accuraterip library.
+:keywords: dart-accuraterip, cli, accuraterip, overview
+
+`{cli-command}` is a standalone command-line interface for the {project-name} library.
+It lets you compute AccurateRip checksums, derive a disc ID, and verify a set of ripped WAV files against the live AccurateRip database — all from the shell, with no Dart code of your own to write.
+
+If you already have a rip on disk and want a fast answer to "did this rip come out correctly?", this is the tool.
+
+== The four subcommands at a glance
+
+[cols="1,3"]
+|===
+|Command |Purpose
+
+|xref:crc.adoc[`crc`]
+|Compute AccurateRip v1 and v2 CRCs for a single WAV file.
+
+|xref:disc-id.adoc[`disc-id`]
+|Compute a disc ID (`discId1`, `discId2`, `cddbDiscId`) from a list of WAV files in track order.
+
+|xref:verify.adoc[`verify`]
+|End-to-end verification: load every track, compute CRCs, query the database, and print a PASS/FAIL table.
+
+|xref:query.adoc[`query`]
+|Raw database lookup from four hex/decimal arguments — no audio required.
+|===
+
+== Design points
+
+Zero dependencies beyond the library itself.
+Argument parsing is hand-rolled (there is no `package:args`), and the single HTTP request the `verify` and `query` commands make uses `dart:io`'s built-in `HttpClient` rather than `package:http`.
+This keeps the CLI's own dependency graph as small as the library's.
+
+WAV is the only supported input format today.
+FLAC support is planned for a later release; until then, decode with the `flac` CLI first and point `{cli-command}` at the resulting WAV.
+
+NOTE: The CLI is VM-only — it runs on Linux, macOS, and Windows wherever the Dart SDK (or a compiled native binary) is available, but it cannot run in a browser because it depends on `dart:io` for file access and networking.
+The underlying {project-name} library itself is fully web-safe; only this command-line wrapper is not.
+
+== Next steps
+
+* xref:installation.adoc[] — install the tool from pub.dev, from a checkout, or as a prebuilt binary.
+* xref:commands.adoc[] — the full command reference, starting with global flags and the usage synopsis.

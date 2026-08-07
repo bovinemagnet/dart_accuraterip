@@ -1,0 +1,48 @@
+= `query`
+:description: Raw AccurateRip database lookup from four hex/decimal arguments, with no audio required, using the dart-accuraterip query subcommand.
+:keywords: dart-accuraterip, cli, query, lookup, database
+
+Fetch and pretty-print the raw AccurateRip database response for a disc ID.
+Unlike xref:verify.adoc[`verify`], `query` needs no audio at all — just the four numbers that identify a disc.
+
+== Synopsis
+
+[source,console]
+----
+$ {cli-command} query <discId1-hex> <discId2-hex> <cddbId-hex> <trackCount>
+----
+
+All three disc IDs are parsed as hexadecimal, with or without a leading `0x`.
+`trackCount` is parsed as a positive decimal integer.
+
+== When to use it
+
+`query` is a debugging tool, useful for:
+
+* Sanity-checking a disc ID computed by another tool — rip the same disc with two tools, feed both sets of IDs through `query`, and compare.
+* Inspecting the raw database response for a known disc without re-ripping it, including every pressing's confidence, primary CRC and `frame450Crc`.
+* Understanding the xref:ROOT:wire-format.adoc[] response layout hands-on, since the printed output mirrors the parsed chunk structure field for field.
+
+See also xref:ROOT:lookup.adoc[] for how the library builds the request URL and parses the response that `query` is printing.
+
+== Sample session
+
+[source,console]
+----
+$ {cli-command} query 0000f21c 00027ef8 05021002 2
+Querying: http://www.accuraterip.com/accuraterip/c/1/2/dBAR-002-0000f21c-00027ef8-05021002.bin
+
+Track 01: 1 pressing(s)
+  confidence=  5  crc=0xdeadbeef  frame450Crc=0x00000000
+Track 02: 1 pressing(s)
+  confidence= 42  crc=0xcafebabe  frame450Crc=0x12345678
+----
+
+If the disc isn't in the database, `query` prints `No entry in the AccurateRip database for this disc.` and exits `1`.
+
+== Exit codes
+
+`0` on a successful lookup (even if some tracks have zero pressings listed).
+`1` if the disc has no database entry at all.
+`64` (`EX_USAGE`) if any disc ID doesn't fit in 32 bits or `trackCount` isn't a positive integer.
+See xref:exit-codes.adoc[].

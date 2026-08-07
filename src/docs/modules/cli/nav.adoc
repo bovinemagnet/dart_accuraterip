@@ -1,0 +1,10 @@
+.Command-line tool
+* xref:cli:index.adoc[Overview]
+* xref:cli:installation.adoc[Installation]
+* xref:cli:commands.adoc[Command reference]
+** xref:cli:crc.adoc[crc]
+** xref:cli:disc-id.adoc[disc-id]
+** xref:cli:verify.adoc[verify]
+** xref:cli:query.adoc[query]
+* xref:cli:exit-codes.adoc[Exit codes]
+* xref:cli:automation.adoc[Scripting and CI]

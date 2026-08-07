@@ -1,0 +1,53 @@
+# Antora component descriptor for the dart_accuraterip documentation.
+#
+# The component is deliberately UNVERSIONED (`version: ~`). The site
+# is built from `main` only, so a version segment in the URL would
+# add nothing but noise. Library and CLI release numbers are carried
+# as attributes below and referenced from the pages, so a release
+# bump touches this file in exactly one place.
+#
+# Author: Paul Snow
+name: dart-accuraterip
+title: dart_accuraterip
+version: ~
+start_page: ROOT:index.adoc
+
+nav:
+  - modules/ROOT/nav.adoc
+  - modules/cli/nav.adoc
+
+asciidoc:
+  attributes:
+    # --- Release numbers (bump on every release) ---
+    lib-version: '0.0.5'
+    cli-version: '0.0.4'
+    min-sdk: '3.0.0'
+
+    # --- Project coordinates ---
+    project-name: 'dart_accuraterip'
+    cli-name: 'dart_accuraterip_cli'
+    cli-command: 'dart-accuraterip'
+    repo-url: 'https://github.com/bovinemagnet/dart_accuraterip'
+    issues-url: 'https://github.com/bovinemagnet/dart_accuraterip/issues'
+    pub-url: 'https://pub.dev/packages/dart_accuraterip'
+    pub-cli-url: 'https://pub.dev/packages/dart_accuraterip_cli'
+    api-url: 'https://pub.dev/documentation/dart_accuraterip/latest/'
+
+    # --- Domain constants ---
+    skip-frames: '2940'
+    ar-base-url: 'http://www.accuraterip.com/accuraterip/'
+
+    # --- Rendering ---
+    source-language: dart@
+    experimental: ''
+    idprefix: ''
+    idseparator: '-'
+    table-caption: ~
+    # Render the mermaid diagrams at build time and publish the SVGs
+    # with the site, rather than hot-linking kroki.io from every page
+    # view. `kroki-fetch-diagram` also writes a redundant copy to a
+    # path relative to the process working directory, so
+    # `imagesoutdir` redirects that spill into build/ where it is
+    # ignored by git and by pub.
+    kroki-fetch-diagram: true
+    imagesoutdir: build/kroki

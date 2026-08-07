@@ -1,0 +1,66 @@
+= Installation
+:description: Add dart_accuraterip to a Dart or Flutter project.
+:keywords: install, pub add, pubspec, dart sdk, flutter
+
+== Add the package
+
+From the root of a Dart or Flutter project:
+
+[source,console]
+----
+dart pub add {project-name}
+----
+
+Or, for a Flutter project:
+
+[source,console]
+----
+flutter pub add {project-name}
+----
+
+Either command adds an entry to `pubspec.yaml` and fetches the
+package. To add it by hand instead:
+
+[source,yaml]
+----
+dependencies:
+  dart_accuraterip: ^{lib-version}
+----
+
+== SDK constraint
+
+{project-name} requires Dart SDK `>={min-sdk} <4.0.0`. This matches
+the constraint declared in the package's own `pubspec.yaml`, so
+`dart pub get` will refuse to resolve it against an older SDK.
+
+== Flutter usage
+
+The library is pure Dart with no platform channels and no native
+build steps, so it works unmodified in Flutter apps targeting
+Android, iOS, desktop, and web. The CRC routines automatically
+select a web-safe implementation when compiled with `dart2js` or
+`dart2wasm` — see xref:platform-support.adoc[] for details.
+
+== No runtime dependencies
+
+{project-name} declares **no runtime dependencies** — its
+`pubspec.yaml` `dependencies:` section is empty. `AccurateRipClient`
+takes an injected HTTP fetcher instead of depending on a transport
+library directly, so adding {project-name} to a project never
+pulls in an HTTP package transitively.
+
+NOTE: `package:http` appears only as a *dev* dependency of the
+`{project-name}` repository itself, used by its own
+`example/query_disc.dart`. It is not part of the published
+package's dependency graph.
+
+You will still need an HTTP client of your own to query the
+AccurateRip database — see xref:quick-start.adoc[] for an example
+using `package:http`, or xref:lookup.adoc[] for the full picture.
+
+== Installing the command-line tool
+
+The examples above install the *library*. If you want a
+ready-to-run terminal tool instead — for computing CRCs, disc IDs,
+or running verification from a script — see
+xref:cli:installation.adoc[].

@@ -1,0 +1,62 @@
+= Installation
+:description: How to install the dart-accuraterip command-line tool from pub.dev, from a source checkout, or as a prebuilt native binary.
+:keywords: dart-accuraterip, cli, installation, pub global activate
+
+There are three ways to get `{cli-command}` onto your `PATH`: activate it from pub.dev, activate it from a source checkout, or download a prebuilt native binary from a GitHub release.
+
+== From pub.dev
+
+The published route, and the one most people want:
+
+[source,console]
+----
+$ dart pub global activate {cli-name}
+----
+
+This resolves `{cli-name}` version {cli-version} from pub.dev and installs its `{cli-command}` executable.
+
+== From a source checkout
+
+Useful when working on the library or CLI itself, or to pick up unreleased changes:
+
+[source,console]
+----
+$ git clone {repo-url}.git
+$ cd dart_accuraterip
+$ dart pub global activate --source path ./cli
+----
+
+TIP: `cli/pubspec_overrides.yaml` points the checkout's dependency on `dart_accuraterip` back at the parent directory, so local library changes are picked up immediately without a publish step.
+
+== Put it on your `PATH`
+
+Both activation routes install the executable under `$HOME/.pub-cache/bin`.
+Make sure that directory is on your shell's `PATH`; the Dart SDK installer does this automatically on most systems, but if `{cli-command}` isn't found after activating, add it yourself:
+
+[source,bash]
+----
+export PATH="$PATH:$HOME/.pub-cache/bin"
+----
+
+== Prebuilt native binaries
+
+Every tagged release (`v*`) compiles native binaries for three platforms and attaches them to the GitHub release:
+
+* `dart_accuraterip-linux-x64`
+* `dart_accuraterip-macos-arm64`
+* `dart_accuraterip-windows-x64.exe`
+
+Download the archive for your platform from the {repo-url}/releases[releases page], extract it, and put the binary on your `PATH` directly — no Dart SDK required at runtime.
+
+== Verify the install
+
+[source,console]
+----
+$ {cli-command} --version
+dart-accuraterip {cli-version}
+----
+
+== Requirements
+
+Building or activating from source needs the Dart SDK, version `>={min-sdk} <4.0.0`.
+Prebuilt binaries have no such requirement — they are self-contained native executables.

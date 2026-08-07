@@ -1,0 +1,23 @@
+.Introduction
+* xref:index.adoc[Overview]
+* xref:what-is-accuraterip.adoc[What AccurateRip is]
+* xref:installation.adoc[Installation]
+* xref:quick-start.adoc[Quick start]
+
+.Guides
+* xref:crc.adoc[Computing v1 and v2 CRCs]
+* xref:wav.adoc[Reading WAV input]
+* xref:disc-id.adoc[Computing a disc ID]
+* xref:lookup.adoc[Querying the database]
+* xref:verifying-a-rip.adoc[Verifying a rip end to end]
+
+.Reference
+* xref:api-reference.adoc[Public API surface]
+* xref:wire-format.adoc[Wire format]
+* xref:platform-support.adoc[Platform support]
+* xref:troubleshooting.adoc[Troubleshooting]
+
+.Project
+* xref:contributing.adoc[Contributing]
+* xref:building-the-docs.adoc[Building these docs]
+* xref:licence.adoc[Licence]

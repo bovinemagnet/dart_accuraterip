@@ -1,0 +1,42 @@
+= Exit codes
+:description: Reference table of dart-accuraterip exit codes and where each command's output goes, for scripting and CI use.
+:keywords: dart-accuraterip, cli, exit codes, stderr, stdout, scripting
+
+Every `{cli-command}` subcommand returns one of three exit codes, making the tool straightforward to gate a pipeline on.
+
+[cols="1,2,3"]
+|===
+|Code |Meaning |When it happens
+
+|`0`
+|Success
+|The command completed normally. For `verify`, this specifically means every track PASSed.
+
+|`1`
+|Verification failure
+|`verify` exits `1` if any track FAILs, or if the disc has no entry in the database at all. `query` exits `1` if the disc has no database entry.
+
+|`64` (`EX_USAGE`)
+|Usage error
+|Bad or missing arguments, an unreadable file, a malformed WAV, non-Red-Book audio, or any other `FormatException` raised while parsing input. An unrecognised subcommand also exits `64`.
+|===
+
+== stdout vs stderr
+
+Normal output — CRCs, disc IDs, the verification table, query results — is written to stdout.
+Error messages are written to stderr, prefixed with the subcommand name, for example:
+
+[source,console]
+----
+$ {cli-command} crc missing.wav
+dart-accuraterip crc: file not found: missing.wav
+----
+
+Because the two streams are kept separate, you can redirect them independently:
+
+[source,bash]
+----
+{cli-command} verify track*.wav >results.log 2>errors.log
+----
+
+TIP: In a script, check `$?` (or the process exit code in your CI system) rather than parsing stdout text — the exit code is the stable, documented contract. See xref:automation.adoc[] for worked examples.

@@ -1,0 +1,156 @@
+= Reading WAV input
+:description: Extract PCM and validate audio format from WAV files with {project-name}, and compute AccurateRip CRCs directly from a .wav on disk.
+:keywords: AccurateRip, WAV, RIFF, PCM, dart
+
+Most rips land on disk as `.wav` files before you ever see raw PCM.
+{project-name} includes a small, dependency-free RIFF/WAVE walker so you can go from a `.wav` file straight to an AccurateRip CRC without writing chunk-parsing code yourself.
+
+== Extracting PCM: `extractPcmFromWav`
+
+[source,dart]
+----
+external Uint8List extractPcmFromWav(Uint8List wavBytes);
+----
+
+Walks the RIFF chunk list starting at offset 12 and returns the payload of the first `data` chunk it finds — exactly the bytes that xref:crc.adoc[`computeArV1` and `computeArV2`] expect.
+
+The walker is deliberately tolerant:
+
+* It skips over any chunks between `fmt ` and `data` — `LIST`, `INFO`, `fact`, `bext`, and anything else a writer might have inserted.
+* It honours the RIFF odd-size padding rule (a chunk with an odd declared size is followed by one padding byte).
+* If the `data` chunk header declares more bytes than are actually present — a truncated trailing chunk — it returns whatever remains rather than throwing.
+
+IMPORTANT: `extractPcmFromWav` never inspects the audio format. It will happily hand you the `data` payload of a mono 8 kHz WAV, a 24-bit file, or anything else — it only knows how to find bytes, not to judge them. Use `parseWavFormat` (below) if you need to know what you are looking at before checksumming it.
+
+`extractPcmFromWav` throws `FormatException` when `wavBytes` does not begin with a valid `RIFF....WAVE` signature, or when no `data` chunk is found at all.
+
+== Checking the format: `parseWavFormat` and `WavFormat`
+
+AccurateRip checksums are only meaningful for Red Book CD-DA audio: 16-bit stereo PCM at 44.1 kHz.
+`parseWavFormat` reads the `fmt ` chunk into a `WavFormat` so you can check this before trusting a checksum.
+
+[source,dart]
+----
+external WavFormat parseWavFormat(Uint8List wavBytes);
+
+class WavFormat {
+  const WavFormat({
+    required this.formatCode,
+    required this.channels,
+    required this.sampleRate,
+    required this.bitsPerSample,
+  });
+
+  final int formatCode;    // 1 = integer PCM, 3 = IEEE float, 0xFFFE = EXTENSIBLE
+  final int channels;
+  final int sampleRate;
+  final int bitsPerSample;
+
+  // true when formatCode == 1 && channels == 2
+  //        && sampleRate == 44100 && bitsPerSample == 16
+  external bool get isRedBookCdAudio;
+  external void requireRedBookCdAudio();
+}
+----
+
+`isRedBookCdAudio` is a strict check by design: a `WAVE_FORMAT_EXTENSIBLE` header wrapping PCM audio is rejected even though its payload might genuinely be CD audio, because rippers write plain `formatCode == 1` headers.
+`requireRedBookCdAudio()` throws `ArgumentError` when the check fails, naming every non-conforming field in the message so you can tell the caller exactly why the file was rejected.
+
+== The exception split
+
+{project-name} distinguishes two failure modes deliberately, and it is worth internalising which is which:
+
+[cols="1,2,2"]
+|===
+| Function | Throws | Because
+
+| `parseWavFormat`
+| `FormatException`
+| The *bytes* are malformed — not a valid RIFF/WAVE stream, or no `fmt ` chunk.
+
+| `extractPcmFromWav`
+| `FormatException`
+| Same reasoning — the *bytes* are malformed.
+
+| `WavFormat.requireRedBookCdAudio()`
+| `ArgumentError`
+| The bytes parsed fine, but the *audio format* is not what AccurateRip is defined for. That is a bad argument, not a bad byte stream.
+|===
+
+`computeArV1FromWav` and `computeArV2FromWav` (below) call `requireRedBookCdAudio()` internally, so they inherit both exception types: `FormatException` for a broken WAV, `ArgumentError` for a WAV that parses fine but isn't 16-bit stereo 44.1 kHz PCM.
+
+== Computing CRCs directly from WAV bytes
+
+[source,dart]
+----
+external int computeArV1FromWav(
+  Uint8List wavBytes, {
+  bool isFirstTrack = false,
+  bool isLastTrack = false,
+});
+
+external int computeArV2FromWav(
+  Uint8List wavBytes, {
+  bool isFirstTrack = false,
+  bool isLastTrack = false,
+});
+----
+
+`computeArV1FromWav` is exactly this (and `computeArV2FromWav` is the same shape, calling `computeArV2`):
+
+[source,dart]
+----
+int computeArV1FromWav(
+  Uint8List wavBytes, {
+  bool isFirstTrack = false,
+  bool isLastTrack = false,
+}) {
+  parseWavFormat(wavBytes).requireRedBookCdAudio();
+  final pcm = extractPcmFromWav(wavBytes);
+  return computeArV1(pcm, isFirstTrack: isFirstTrack, isLastTrack: isLastTrack);
+}
+----
+
+Typical usage:
+
+[source,dart]
+----
+import 'dart:io';
+import 'package:dart_accuraterip/dart_accuraterip.dart';
+
+final wavBytes = File('track01.wav').readAsBytesSync();
+
+final v1 = computeArV1FromWav(wavBytes, isFirstTrack: true);
+final v2 = computeArV2FromWav(wavBytes, isFirstTrack: true);
+----
+
+=== Bypassing the Red Book check
+
+Since checking the audio format is a deliberate safety net, not a suggestion, there is no flag to silence it on the `FromWav` wrappers.
+If you genuinely need to checksum a non-conforming WAV — testing, forensic analysis, or a pipeline that already validated the format upstream — call the two lower-level functions directly and skip the wrapper entirely:
+
+[source,dart]
+----
+final v1 = computeArV1(extractPcmFromWav(wavBytes));
+----
+
+This is the documented, supported bypass.
+Remember that AccurateRip checksums are not *defined* for anything other than Red Book CD-DA — a checksum computed this way over other audio will compute a value, but it will never match a database entry.
+
+== Converting other formats
+
+If your rip is in FLAC rather than WAV, decode it to WAV first with the `flac` CLI:
+
+[source,console]
+----
+$ flac -d track01.flac -o track01.wav
+----
+
+then feed the resulting file to `extractPcmFromWav` or the `FromWav` wrappers as above.
+{project-name} does not decode compressed audio itself and has no plans to — see the Design invariants note on zero runtime dependencies.
+
+== See also
+
+* xref:crc.adoc[] — the underlying CRC functions and the skip-window rules.
+* xref:verifying-a-rip.adoc[] — a complete recipe reading a whole album's worth of WAV files.
+* xref:cli:crc.adoc[the `crc` CLI command] — a zero-code way to checksum a WAV file from the terminal.
