@@ -1,0 +1,93 @@
+= Wire format
+:description: The reverse-engineered AccurateRip binary response format, per-chunk layout, and the lookup URL path segments.
+:keywords: AccurateRip, wire format, protocol, binary, dBAR, disc ID, whipper, CUETools
+
+This page documents the AccurateRip database's binary response format and lookup URL, as reverse-engineered and implemented by {project-name}.
+
+There is no official specification for this protocol.
+Everything below comes from reverse-engineering carried out by the whipper and CUETools projects and the wider CD-ripping community, cross-checked against real responses captured from the live server.
+
+== Response shape
+
+An AccurateRip database response body is a concatenation of *chunks*.
+Each chunk represents one *pressing* of the disc — the database can hold multiple pressings or submissions for the same disc ID, for example different countries or reissues of the same release.
+
+`parseAccurateRipResponse` decodes every chunk it can find and returns an `AccurateRipDiscResult` holding one `AccurateRipTrackResult` per track, each carrying the list of `AccurateRipEntry` values contributed by every chunk (see xref:api-reference.adoc[] for the full model shapes).
+
+== Per-chunk binary layout
+
+All multi-byte integers are little-endian.
+
+[source,text]
+----
+trackCount : u8
+discId1    : u32 LE
+discId2    : u32 LE
+cddbDiscId : u32 LE
+(confidence : u8 || crc : u32 LE || frame450Crc : u32 LE) × trackCount
+----
+
+The chunk header is 13 bytes (1 + 4 + 4 + 4).
+Each per-track entry that follows the header is 9 bytes (1 + 4 + 4).
+
+== One primary CRC per entry, version unknown
+
+Each entry carries exactly one primary CRC field, `crc`.
+The AccurateRip server stores whatever CRC value the submitting ripper computed and sent: older rippers submitted an AccurateRip v1 CRC, newer rippers submit a v2 CRC.
+The response format gives no indication of which version any given entry was submitted under.
+
+A correct client must therefore compute both `computeArV1` and `computeArV2` locally (see xref:crc.adoc[]) and test both against the single `crc` field.
+This is exactly what `AccurateRipEntry.matches({required computedV1, required computedV2})` does — see xref:api-reference.adoc[] for the full signature.
+
+IMPORTANT: There is no per-entry v1/v2 pair of CRC fields.
+An earlier iteration of this package mistakenly named the trailing 4-byte field `crcV2`, which was wrong.
+It is `frame450Crc`, a CRC computed over only the first 450 stereo frames of the track, used by tools such as CUETools to verify drive read-offset alignment.
+It is often `0` for older pressings that predate the field.
+
+== Parser tolerance
+
+`parseAccurateRipResponse` is deliberately tolerant of a truncated trailing chunk.
+If a chunk's declared `trackCount` implies more bytes than remain in the buffer, the parser stops and returns whatever complete entries it has already decoded, rather than throwing.
+It returns `null` only when the input is empty or when nothing at all could be decoded.
+
+== Lookup URL shape
+
+The lookup URL has the shape:
+
+[source,text]
+----
+{ar-base-url}<a>/<b>/<c>/dBAR-<nnn>-<discId1hex>-<discId2hex>-<cddbhex>.bin
+----
+
+`<nnn>` is the zero-padded, 3-digit track count.
+`<discId1hex>`, `<discId2hex>` and `<cddbhex>` are the 8-hex-digit, zero-padded representations of `discId1`, `discId2` and `cddbDiscId` respectively.
+
+IMPORTANT: `<a>`, `<b>` and `<c>` are the last, second-to-last, and third-to-last *single* hex digits of `discId1` — one character each.
+For `discId1 = 0x0000f21c`, the trailing digits are `...f21c`, so the path segments are `c` (last), `1` (second-to-last) and `2` (third-to-last), giving:
++
+[source,text]
+----
+c/1/2
+----
++
+They are NOT growing, cumulative substrings such as `c/1c/21c`.
+That cumulative form is what an earlier, buggy version of this package emitted, and it 404s against the live server.
+This is fixed and pinned by a golden test asserting the exact path built from the committed fixture.
+
+=== Disc IDs used in the URL
+
+`discId1` and `discId2` use raw LBA sector offsets with no 150-sector lead-in bias.
+The 150-sector bias is a FreeDB/CDDB convention and applies only to `cddbDiscId`, never to `discId1` or `discId2`.
+See xref:disc-id.adoc[] for the full derivation of all three fields from per-track sample counts.
+
+== Reference implementations consulted
+
+This package's understanding of the wire format was checked against two independent, widely used reference implementations:
+
+* *whipper* (Python, GPL-3.0) — https://github.com/whipper-team/whipper — specifically `accuraterip_path()` and `accuraterip_ids()` in `whipper/image/table.py`.
+* *CUETools.NET* (C#, `CUETools.AccurateRip/AccurateRip.cs`, the `AccTrack` struct) — https://github.com/gchudov/cuetools.net
+
+== Golden fixture
+
+The parser is pinned against a real captured AccurateRip response committed at `test/fixtures/dBAR-002-0000f21c-00027ef8-05021002.bin` (62 bytes, redistributed from whipper under GPL-3.0).
+The test suite's golden test decodes this fixture and asserts against it, proving that {project-name}'s decoding agrees with an independent, widely used reference implementation on real bytes captured from the live server.

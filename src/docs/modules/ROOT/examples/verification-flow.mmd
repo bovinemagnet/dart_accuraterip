@@ -1,0 +1,52 @@
+%% End-to-end rip verification flow: read WAV tracks, compute local
+%% checksums, look the disc up in the AccurateRip database, and report
+%% per-track match status. Mirrors the recipe in verifying-a-rip.adoc.
+flowchart TD
+    Start(["WAV files, in track order"])
+
+    subgraph PerTrack["Per track (repeat in disc order)"]
+        Read["Read track WAV"]
+        Extract["Extract PCM<br/>validate Red Book format"]
+        Crc["Compute v1 + v2 CRC<br/>correct first/last-track skip flags"]
+        Frames["Derive stereo frame count"]
+        Read --> Extract
+        Extract --> Crc
+        Extract --> Frames
+    end
+
+    subgraph Lookup["Once per disc"]
+        BuildId["Build AccurateRipDiscId<br/>discId1, discId2, cddbDiscId"]
+        BuildUrl["Build lookup URL"]
+        Fetch["HTTP GET<br/>via injected fetcher"]
+        Parse["Parse binary response<br/>into per-track entries"]
+        BuildId --> BuildUrl --> Fetch --> Parse
+    end
+
+    subgraph Verify["Per track"]
+        Test{"Test every entry:<br/>matches(computedV1, computedV2)"}
+        Verified["Verified<br/>report highest confidence"]
+        NoMatch["No match"]
+        Test -->|"match found"| Verified
+        Test -->|"no entry matches"| NoMatch
+    end
+
+    Start --> Read
+    Frames --> BuildId
+    Crc --> Test
+    Parse --> Test
+
+    classDef perTrack fill:#eaf2fb,stroke:#2c5f8a,color:#1a3a52;
+    classDef lookup fill:#fffaf0,stroke:#e0a800,color:#333333;
+    classDef verifyOk fill:#d4edda,stroke:#3d8b40,color:#1e4620;
+    classDef verifyFail fill:#f8d7da,stroke:#c0392b,color:#611a15;
+    classDef terminus fill:#6abf69,color:#ffffff,stroke:#3d8b40,stroke-width:2px;
+
+    class Read,Extract,Crc,Frames perTrack;
+    class BuildId,BuildUrl,Fetch,Parse lookup;
+    class Verified verifyOk;
+    class NoMatch verifyFail;
+    class Start terminus;
+
+    style PerTrack fill:#f5f9fe,stroke:#2c5f8a,stroke-width:1px;
+    style Lookup fill:#fffdf5,stroke:#e0a800,stroke-width:1px;
+    style Verify fill:#fafafa,stroke:#999999,stroke-width:1px;

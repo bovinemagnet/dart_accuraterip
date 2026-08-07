@@ -1,0 +1,212 @@
+= Public API surface
+:description: A compact catalogue of every type and function exported from package:dart_accuraterip/dart_accuraterip.dart, grouped by area with links to the full guides.
+:keywords: AccurateRip, API, reference, dart, public API
+
+This page catalogues the entire public API of {project-name}.
+
+Every type and function listed below is re-exported from the single entry point `package:dart_accuraterip/dart_accuraterip.dart` — there is nothing else to import.
+
+[IMPORTANT]
+====
+This surface is deliberately stable.
+Renaming a type, adding or removing a parameter, or changing a return type here is a *breaking change* and requires a semver bump of the `version:` field in `pubspec.yaml`, plus an entry in `CHANGELOG.md`.
+If you are contributing a change that touches any signature on this page, read xref:contributing.adoc[] first.
+====
+
+Each section below links to a guide page with worked examples and the full rationale; this page is intentionally terse — it exists so you can scan the whole surface in one screen.
+
+== CRC
+
+See xref:crc.adoc[] for the full contract, the skip-window rules, and why v1 and v2 diverge.
+
+[cols="2,3"]
+|===
+| Signature | Summary
+
+| `int computeArV1(Uint8List pcmData, {bool isFirstTrack = false, bool isLastTrack = false})`
+| Computes the AccurateRip v1 CRC over raw 16-bit stereo interleaved PCM.
+
+| `int computeArV2(Uint8List pcmData, {bool isFirstTrack = false, bool isLastTrack = false})`
+| Computes the AccurateRip v2 CRC — as v1, but additionally folds the upper 32 bits of each 64-bit product back into the accumulator.
+
+| `const int accurateRipSkipFrames`
+| The lead-in/lead-out exclusion window size, in stereo frames: `5 * 588` = `{skip-frames}`.
+|===
+
+[NOTE]
+====
+`accurateRipSkipFrames` is one constant with two different meanings, depending on which end of the track it applies to:
+
+* First track: the multiplier is the frame's absolute 1-based position, and accumulation only starts once that position is `>= {skip-frames}` — so the first counted frame is index 2939, and exactly **2939** leading frames are skipped, not 2940.
+* Last track: the tail bound is a true frame *count* — the final **{skip-frames}** frames are dropped.
+
+Pass `isFirstTrack: true` for the first track on the disc and `isLastTrack: true` for the last (both may be `true` at once for a single-track disc); every other track passes neither flag.
+====
+
+== WAV
+
+See xref:wav.adoc[] for chunk-walking details, the exception split, and a worked example reading a file from disk.
+
+[cols="2,3"]
+|===
+| Signature | Summary
+
+| `Uint8List extractPcmFromWav(Uint8List wavBytes)`
+| Walks a RIFF/WAVE byte buffer and returns the `data` chunk payload. Tolerant of extra chunks and a truncated trailing data chunk; throws `FormatException` on malformed input. Deliberately permissive — it never checks the audio format.
+
+| `WavFormat parseWavFormat(Uint8List wavBytes)`
+| Reads the `fmt ` chunk into an immutable `WavFormat`. Throws `FormatException` on malformed input: missing `RIFF`/`WAVE` signature, no `fmt ` chunk, or a `fmt ` chunk shorter than 16 bytes.
+
+a|
+[source,dart]
+----
+class WavFormat {
+  const WavFormat({
+    required this.formatCode,
+    required this.channels,
+    required this.sampleRate,
+    required this.bitsPerSample,
+  });
+
+  final int formatCode;
+  final int channels;
+  final int sampleRate;
+  final int bitsPerSample;
+
+  bool get isRedBookCdAudio;
+  void requireRedBookCdAudio();
+}
+----
+| Immutable WAV format descriptor. `isRedBookCdAudio` is `true` only for format code 1, 2 channels, 44100 Hz, 16-bit. `requireRedBookCdAudio()` throws `ArgumentError` naming every non-conforming field.
+
+| `int computeArV1FromWav(Uint8List wavBytes, {bool isFirstTrack = false, bool isLastTrack = false})` +
+`int computeArV2FromWav(Uint8List wavBytes, {bool isFirstTrack = false, bool isLastTrack = false})`
+| Chain the Red Book check, `extractPcmFromWav`, and the matching CRC function. Throw `ArgumentError` on non-Red-Book input (AccurateRip is undefined for anything but 16-bit stereo 44.1 kHz PCM) and `FormatException` on malformed WAV bytes.
+|===
+
+TIP: To deliberately checksum a non-conforming WAV — bypassing the Red Book check — call `computeArV1(extractPcmFromWav(wavBytes))` directly instead of the `FromWav` wrappers. This is the documented, supported bypass; see xref:wav.adoc[].
+
+== Disc ID
+
+See xref:disc-id.adoc[] for the offset arithmetic and worked examples from FLAC `STREAMINFO` data.
+
+[cols="2,3"]
+|===
+| Signature | Summary
+
+a|
+[source,dart]
+----
+class AccurateRipDiscId {
+  const AccurateRipDiscId({
+    required this.discId1,
+    required this.discId2,
+    required this.cddbDiscId,
+    required this.trackCount,
+  });
+
+  final int discId1;
+  final int discId2;
+  final int cddbDiscId;
+  final int trackCount;
+}
+----
+| Immutable disc identifier used to build the lookup URL. All four fields are required `int` values.
+
+| `factory AccurateRipDiscId.fromTrackSampleCounts(List<int> trackSampleCounts, {int sampleRate = 44100})`
+| Computes `discId1`, `discId2`, and `cddbDiscId` from per-track stereo-frame counts — for example, the FLAC `STREAMINFO` `totalSamples` field for each track.
+|===
+
+== Models
+
+See xref:lookup.adoc[] for how these models are populated from a live query and how to interpret a response.
+
+[cols="2,3"]
+|===
+| Signature | Summary
+
+| `class AccurateRipDiscResult` +
+`const AccurateRipDiscResult({required this.tracks})` +
+`final List<AccurateRipTrackResult> tracks;`
+| The full parsed response for one disc. `tracks` is in 1-based ascending track order.
+
+| `class AccurateRipTrackResult` +
+`const AccurateRipTrackResult({required this.trackNumber, required this.entries})` +
+`final int trackNumber;` +
+`final List<AccurateRipEntry> entries;`
+| Results for a single track. `trackNumber` is 1-based; `entries` holds one `AccurateRipEntry` per pressing the database has on file for this disc.
+
+a|
+[source,dart]
+----
+class AccurateRipEntry {
+  const AccurateRipEntry({
+    required this.confidence,
+    required this.crc,
+    required this.frame450Crc,
+  });
+
+  final int confidence;
+  final int crc;
+  final int frame450Crc;
+
+  bool matches({required int computedV1, required int computedV2});
+}
+----
+| One pressing's submitted result. `confidence` is the submission count. `matches()` returns `crc == computedV1 \|\| crc == computedV2` — the canonical verification helper.
+|===
+
+[IMPORTANT]
+====
+`AccurateRipEntry` has exactly two CRC fields — `crc` and `frame450Crc` — and there is no `crcV1` / `crcV2` pair and no per-entry v1/v2 split.
+
+The AccurateRip wire format stores exactly one primary CRC per entry: the server records whatever the submitting ripper sent, and older submissions used v1 while newer ones use v2, with no flag distinguishing which.
+That is why `matches()` takes both `computedV1` and `computedV2` and tries either against the single `crc` field, rather than comparing two separate stored values.
+
+`frame450Crc` is unrelated to this v1/v2 split — it is a CRC over the first 450 stereo frames only, used by CUETools for drive-offset verification, and is often `0` for older pressings.
+
+See xref:wire-format.adoc[] for the full byte layout.
+====
+
+== Protocol
+
+See xref:wire-format.adoc[] for the exact byte layout these functions build and parse.
+
+[cols="2,3"]
+|===
+| Signature | Summary
+
+| `Uri buildAccurateRipUrl(AccurateRipDiscId id)`
+| Builds the HTTP lookup URL for a disc ID.
+
+| `AccurateRipDiscResult? parseAccurateRipResponse(Uint8List bytes)`
+| Decodes a raw response body into the result models, or returns `null` when the body is empty or unparseable. Tolerant of a truncated trailing chunk — it returns whatever entries it could decode before the short read.
+|===
+
+== Client
+
+See xref:lookup.adoc[] for a worked example wiring up an HTTP fetcher and querying a disc.
+
+[cols="2,3"]
+|===
+| Signature | Summary
+
+| `typedef AccurateRipFetcher = Future<Uint8List> Function(Uri url)`
+| The injected HTTP fetcher signature. Consumers bring their own HTTP client; {project-name} never bundles one.
+
+| `class AccurateRipClient` +
+`const AccurateRipClient({required AccurateRipFetcher fetch})`
+| Thin wrapper pairing a fetcher with the URL builder and response parser.
+
+| `Future<AccurateRipDiscResult?> queryDisc(AccurateRipDiscId id)`
+| One-call lookup: builds the URL, calls `fetch`, and parses the response. Returns `null` on *any* error — a fetcher exception, an empty body, or an unparseable response all collapse to `null`.
+|===
+
+TIP: Callers that need to distinguish a network failure from an empty database entry should not use `queryDisc`. Call `buildAccurateRipUrl` and `parseAccurateRipResponse` directly instead — both are pure and exported precisely so you can compose your own error handling.
+
+== Further reading
+
+The full generated API reference, including every parameter and every doc comment, is published as dartdoc at {api-url}.
+
+{project-name} has zero runtime dependencies: the HTTP client is always injected by the caller through `AccurateRipFetcher`, never bundled by the library.
+See xref:platform-support.adoc[] for how the CRC implementation itself varies between the Dart VM and web targets while keeping this same public surface.

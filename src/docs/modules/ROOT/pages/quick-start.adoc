@@ -1,0 +1,135 @@
+= Quick start
+:description: A five-minute walkthrough from a WAV file to a verified AccurateRip match.
+:keywords: quick start, tutorial, crc, disc id, query, verify
+
+This page walks through the four steps most consumers of
+{project-name} need: compute a CRC, compute a disc ID, query the
+database, and check the result. Each step is a self-contained
+snippet you can copy into a `main()`.
+
+== 1. Compute a CRC from a WAV file
+
+If your rip is already a WAV file, the library walks the RIFF
+chunks for you — there is no manual PCM-extraction step:
+
+[source,dart]
+----
+import 'dart:io';
+import 'package:dart_accuraterip/dart_accuraterip.dart';
+
+final wavBytes = File('track01.wav').readAsBytesSync();
+
+final v1 = computeArV1FromWav(wavBytes, isFirstTrack: true);
+final v2 = computeArV2FromWav(wavBytes, isFirstTrack: true);
+----
+
+`isFirstTrack` and `isLastTrack` control the
+{skip-frames}-frame lead-in/lead-out skip described in
+xref:what-is-accuraterip.adoc[]; pass `isLastTrack: true` too when
+the track is the last one on the disc.
+
+`computeArV1FromWav` and `computeArV2FromWav` require Red Book CD-DA
+input (16-bit stereo, 44.1 kHz) and throw `ArgumentError` otherwise
+— AccurateRip is undefined for any other format. If you already have
+raw PCM rather than a WAV file, call `computeArV1` / `computeArV2`
+directly instead.
+
+TIP: See xref:crc.adoc[Computing v1 and v2 CRCs] and
+xref:wav.adoc[Reading WAV input] for the full detail on both entry
+points.
+
+== 2. Compute a disc ID from a list of WAVs
+
+A disc ID identifies the disc's track layout to the AccurateRip
+database. Build it from the per-track sample counts of every track
+on the disc, in order:
+
+[source,dart]
+----
+final id = AccurateRipDiscId.fromTrackSampleCounts([
+  13371228, // track 1 — stereo frame count
+  11908704, // track 2
+  9847200,  // track 3
+]);
+----
+
+If you are working from WAV files rather than a CD TOC, the sample
+count for each track is its data-chunk length divided by the frame
+size (4 bytes for 16-bit stereo). See
+xref:disc-id.adoc[Computing a disc ID] for how to derive it from a
+FLAC `STREAMINFO` block or a cue sheet instead.
+
+== 3. Query the database with an injected fetcher
+
+{project-name} has no HTTP dependency of its own. Supply a fetcher
+callback — here using `package:http`, a *dev* dependency you add
+yourself:
+
+[source,dart]
+----
+import 'dart:typed_data';
+import 'package:dart_accuraterip/dart_accuraterip.dart';
+import 'package:http/http.dart' as http;
+
+final client = AccurateRipClient(
+  fetch: (uri) async {
+    final response = await http.get(uri);
+    if (response.statusCode == 404) return Uint8List(0);
+    return response.bodyBytes;
+  },
+);
+
+final result = await client.queryDisc(id);
+for (final track in result?.tracks ?? const []) {
+  for (final entry in track.entries) {
+    print('track ${track.trackNumber}: '
+        'crc=0x${entry.crc.toRadixString(16)} '
+        'confidence=${entry.confidence}');
+  }
+}
+----
+
+`queryDisc` returns `null` if the disc is not in the database, the
+fetcher throws, or the response cannot be parsed — see
+xref:lookup.adoc[Querying the database] for how to distinguish
+those cases using the lower-level `buildAccurateRipUrl` and
+`parseAccurateRipResponse` helpers.
+
+== 4. Check a match with `AccurateRipEntry.matches`
+
+Because a database entry stores only one CRC and it may have been
+submitted under either algorithm version, compute both locally and
+try both against every candidate entry:
+
+[source,dart]
+----
+final v1 = computeArV1(
+  trackPcm,
+  isFirstTrack: trackIndex == 0,
+  isLastTrack: trackIndex == lastTrackIndex,
+);
+final v2 = computeArV2(
+  trackPcm,
+  isFirstTrack: trackIndex == 0,
+  isLastTrack: trackIndex == lastTrackIndex,
+);
+
+final verified = result!.tracks
+    .firstWhere((t) => t.trackNumber == trackIndex + 1)
+    .entries
+    .any((e) => e.matches(computedV1: v1, computedV2: v2));
+----
+
+A `true` result means at least one pressing in the database agrees
+with your rip — your rip is confirmed bit-accurate.
+
+== Where next
+
+* xref:verifying-a-rip.adoc[Verifying a rip end to end] puts these
+  four steps together into a complete, multi-track workflow.
+* xref:what-is-accuraterip.adoc[What AccurateRip is] explains the
+  concepts behind confidence, pressings, and the v1/v2 split.
+* xref:api-reference.adoc[Public API surface] documents every
+  exported type and function.
+* xref:cli:index.adoc[The command-line tool] wraps this whole
+  workflow in a single `{cli-command}` binary, for scripting and CI.

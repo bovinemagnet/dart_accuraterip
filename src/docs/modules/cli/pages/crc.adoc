@@ -1,0 +1,43 @@
+= `crc`
+:description: Compute AccurateRip v1 and v2 CRCs for a single WAV file with the dart-accuraterip crc subcommand.
+:keywords: dart-accuraterip, cli, crc, checksum
+
+Compute AccurateRip v1 and v2 CRCs over a single WAV file's PCM payload and print both as 8-character lowercase hex.
+
+== Synopsis
+
+[source,console]
+----
+$ {cli-command} crc [--first] [--last] <file.wav>
+----
+
+== Flags
+
+`--first`::
+Skip the first {skip-frames} stereo frames — use this when the file is the first track on the disc.
+
+`--last`::
+Skip the last {skip-frames} stereo frames — use this when the file is the last track on the disc.
+
+`--help`::
+Print usage and exit 0.
+
+Both skip flags may be set together on a single-track disc.
+Without either flag, the whole file is checksummed with no frames skipped.
+
+TIP: The choice of flags matters. AccurateRip's own database entries skip a lead-in/lead-out region at the start of the first track and the end of the last track — pass the flags for tracks in those positions or your locally computed CRC will never match the database. See xref:ROOT:crc.adoc[] for why the skip window exists and how the underlying library implements it.
+
+== Sample session
+
+[source,console]
+----
+$ {cli-command} crc --first track01.wav
+v1: 284fc705
+v2: dc77f9ab
+----
+
+== Exit codes
+
+`0` on success.
+`64` (`EX_USAGE`) if the file is missing, is not a well-formed WAV, or is not Red Book CD-DA audio (16-bit stereo, 44.1 kHz) — AccurateRip is undefined for anything else, so the command refuses rather than print a meaningless CRC.
+See xref:exit-codes.adoc[] for the full table.

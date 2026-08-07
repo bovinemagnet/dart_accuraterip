@@ -1,0 +1,166 @@
+= Querying the database
+:description: Build AccurateRip lookup URLs, parse the binary response, and query the live database with an injected HTTP fetcher.
+:keywords: AccurateRip, HTTP, lookup, client, dart
+
+Once you have an `AccurateRipDiscId` (see xref:disc-id.adoc[]), the remaining work is: build the lookup URL, fetch it, and decode the binary response.
+{project-name} splits this into two pure helpers plus one optional convenience client, so you can use as much or as little of it as you like.
+
+== The URL shape
+
+[source,dart]
+----
+external Uri buildAccurateRipUrl(AccurateRipDiscId id);
+----
+
+The AccurateRip database is served over plain HTTP at `{ar-base-url}`.
+`buildAccurateRipUrl` constructs a path of the shape:
+
+[source]
+----
+{ar-base-url}<a>/<b>/<c>/dBAR-<nnn>-<discId1>-<discId2>-<cddbDiscId>.bin
+----
+
+`<nnn>` is the zero-padded track count, and `<discId1>`, `<discId2>`, `<cddbDiscId>` are the 8-digit lowercase hexadecimal disc ID fields.
+`<a>`, `<b>`, `<c>` are the interesting part:
+
+[IMPORTANT]
+====
+`<a>`, `<b>` and `<c>` are each a **single hexadecimal digit** — specifically the last, second-to-last, and third-to-last hex digits of `discId1`.
+They are not growing substrings of `discId1`.
+
+For `discId1 = 0000f21c`, the digits are `c` (last), `1` (second-to-last), `2` (third-to-last), giving the path segment `c/1/2`.
+
+Releases up to 0.0.3 emitted growing substrings instead (`c/1c/21c`), which 404s against the live server. Fixed in 0.0.4 and pinned by a golden test asserting the exact path of a fixture confirmed to return HTTP 200 in production.
+====
+
+`buildAccurateRipUrl` does not force HTTPS — the AccurateRip database has historically only ever been served over plain HTTP. If transport security matters to your application, wrap the fetcher rather than expecting the builder to upgrade the scheme.
+
+== Parsing the response
+
+[source,dart]
+----
+external AccurateRipDiscResult? parseAccurateRipResponse(Uint8List bytes);
+----
+
+The response body is a concatenation of *chunks*, one per pressing of the disc:
+
+[source]
+----
+trackCount : u8
+discId1    : u32 LE
+discId2    : u32 LE
+cddbDiscId : u32 LE
+(confidence : u8 || crc : u32 LE || frame450Crc : u32 LE) × trackCount
+----
+
+`parseAccurateRipResponse` decodes every chunk it can and merges entries per track number (1-based) across all chunks, so a track with multiple known pressings ends up with multiple `AccurateRipEntry` values in `AccurateRipTrackResult.entries`.
+It returns `null` for an empty or entirely unparseable body.
+
+NOTE: The parser is tolerant of a truncated trailing chunk — if the declared `trackCount` of the last chunk would read past the end of `bytes`, that chunk is dropped and everything decoded so far is still returned. A short read never causes an exception.
+
+See xref:wire-format.adoc[] for the full byte-level reference, including why each entry carries exactly one `crc` field rather than a v1/v2 pair.
+
+== Fetching the bytes
+
+{project-name} has no HTTP dependency of its own — you inject a fetcher:
+
+[source,dart]
+----
+typedef AccurateRipFetcher = Future<Uint8List> Function(Uri url);
+----
+
+=== Using `package:http`
+
+[source,dart]
+----
+import 'dart:typed_data';
+import 'package:http/http.dart' as http;
+
+Future<Uint8List> fetch(Uri url) async {
+  final response = await http.get(url);
+  if (response.statusCode == 404) return Uint8List(0);
+  if (response.statusCode != 200) {
+    throw http.ClientException('HTTP ${response.statusCode}', url);
+  }
+  return response.bodyBytes;
+}
+----
+
+=== Using `dart:io HttpClient`
+
+[source,dart]
+----
+import 'dart:io';
+import 'dart:typed_data';
+
+Future<Uint8List> fetch(Uri url) async {
+  final client = HttpClient();
+  try {
+    final request = await client.getUrl(url);
+    final response = await request.close();
+    if (response.statusCode == HttpStatus.notFound) return Uint8List(0);
+    if (response.statusCode != HttpStatus.ok) {
+      throw HttpException('HTTP ${response.statusCode}', uri: url);
+    }
+    final bytes = await response.fold<BytesBuilder>(
+      BytesBuilder(),
+      (builder, chunk) => builder..add(chunk),
+    );
+    return bytes.takeBytes();
+  } finally {
+    client.close();
+  }
+}
+----
+
+TIP: Map a `404 Not Found` to an empty `Uint8List` rather than throwing. `AccurateRipClient.queryDisc` treats an empty body as "disc not in the database" and returns `null` — which is a normal, expected outcome, not an error worth surfacing as an exception.
+
+== The convenience client
+
+[source,dart]
+----
+class AccurateRipClient {
+  const AccurateRipClient({required this.fetch});
+  final AccurateRipFetcher fetch;
+
+  external Future<AccurateRipDiscResult?> queryDisc(AccurateRipDiscId id);
+}
+----
+
+[source,dart]
+----
+final client = AccurateRipClient(fetch: fetch); // your fetcher from above
+
+Future<void> lookup(AccurateRipDiscId discId) async {
+  final result = await client.queryDisc(discId);
+  // use result...
+}
+----
+
+`queryDisc` builds the URL, calls `fetch`, and parses the response — and collapses **every** failure mode to `null`:
+
+* the fetcher throws (network failure, DNS failure, a mapped 404, anything),
+* the fetcher returns an empty body,
+* the body is non-empty but does not parse as a valid AccurateRip chunk stream.
+
+[NOTE]
+====
+If your application needs to distinguish "disc not in the database" from "the network is down" from "the server sent garbage", `queryDisc` is the wrong layer — it deliberately throws all of that away for callers who just want a result-or-nothing answer.
+Call `buildAccurateRipUrl` and `parseAccurateRipResponse` directly instead and handle your own HTTP layer's exceptions and status codes.
+====
+
+== Be a good citizen
+
+The AccurateRip database is a community resource run on volunteer infrastructure, not a rate-limited cloud API.
+If you are building a tool that queries it:
+
+* Cache results locally (keyed on the disc ID) rather than re-querying the same disc on every run.
+* Avoid querying in a tight loop across a large batch of discs — add a small delay between requests if you are processing many discs unattended.
+* Send a descriptive `User-Agent` identifying your tool, the way the CLI does (see xref:cli:query.adoc[]), so the maintainers can tell what's generating traffic.
+
+== See also
+
+* xref:disc-id.adoc[] — build the `AccurateRipDiscId` this page consumes.
+* xref:verifying-a-rip.adoc[] — the full lookup-and-verify recipe.
+* xref:wire-format.adoc[] — byte-level reference for the response format.
+* xref:cli:query.adoc[the `query` CLI command] — a zero-code way to run a lookup from the terminal.

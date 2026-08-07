@@ -1,0 +1,56 @@
+# Antora playbook for the dart_accuraterip documentation site.
+#
+# One playbook serves both purposes. The defaults here are the
+# forgiving local ones; CI tightens them with command-line flags,
+# which is the only difference between a preview and a publish.
+#
+#   npx antora antora-playbook.yml                 # local preview
+#   npx antora --fetch --log-failure-level=error \
+#              antora-playbook.yml                 # what CI runs
+#
+# `url: .` with `branches: HEAD` reads the files as they are on
+# disk, so uncommitted edits appear in the preview without a commit.
+#
+# Author: Paul Snow
+site:
+  title: dart_accuraterip
+  url: https://bovinemagnet.github.io/dart_accuraterip
+  start_page: dart-accuraterip::index.adoc
+  robots: allow
+
+content:
+  sources:
+    - url: .
+      branches: HEAD
+      start_path: src/docs
+      edit_url: 'https://github.com/bovinemagnet/dart_accuraterip/edit/main/{path}'
+
+ui:
+  bundle:
+    url: https://github.com/bovinemagnet/snowed-under-antora-ui-bundle/releases/latest/download/ui-bundle.zip
+    snapshot: true
+
+asciidoc:
+  extensions:
+    - asciidoctor-kroki
+
+antora:
+  extensions:
+    - require: '@antora/lunr-extension'
+      index_latest_only: true
+
+output:
+  clean: true
+  dir: ./build/site
+
+runtime:
+  cache_dir: ./.antora-cache
+  # Left false so local builds reuse the cached UI bundle; CI passes
+  # --fetch to pull the latest. A playbook that hard-codes `true`
+  # cannot be turned off again from the command line.
+  fetch: false
+  log:
+    level: warn
+    # CI raises this to `error` with --log-failure-level so a broken
+    # xref fails the build, while local previews stay warn-tolerant.
+    failure_level: warn

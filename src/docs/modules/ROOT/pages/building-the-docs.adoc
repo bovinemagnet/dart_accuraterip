@@ -1,0 +1,100 @@
+= Building these docs
+:description: How the dart_accuraterip documentation site is structured and built with Antora, including local preview and diagram conventions.
+:keywords: antora, documentation, asciidoc, build, preview, mermaid, kroki
+
+This page explains how the {project-name} documentation site itself is built and previewed.
+It is aimed at anyone editing or extending these pages, not at users of the library or the {cli-name} tool.
+
+TIP: Looking for how to build and test the *library* instead?
+See xref:contributing.adoc[] for that separate development cycle.
+
+== Where the docs source lives
+
+The documentation source lives under `src/docs/` at the root of the repository, structured as a single Antora component.
+
+`src/docs/antora.yml`:: The component descriptor.
+It carries `name: dart-accuraterip`, `title: dart_accuraterip`, and an intentionally unversioned `version: ~`, since the site is built only from `main` and a version segment in the URL would add nothing but noise.
+It also defines the shared AsciiDoc attributes referenced throughout the pages, such as `{lib-version}` and `{cli-version}`.
+
+`src/docs/modules/ROOT/`:: The library documentation — this page's own module.
+
+`src/docs/modules/cli/`:: The command-line tool documentation, covering the `{cli-command}` executable.
+
+Each module follows the same shape: `pages/`, `partials/`, `examples/`, `images/`, and its own `nav.adoc`.
+
+== Local preview workflow
+
+To preview the site locally, install the Antora dependencies and run the playbook:
+
+[source,console]
+----
+npm install
+npx antora antora-playbook.yml
+----
+
+The build output lands in `build/site/`.
+Open `build/site/index.html` in a browser to preview the rendered site.
+
+The playbook reads the files as they are on disk, so uncommitted edits appear in the preview without needing a commit or push.
+
+== One playbook, two invocations
+
+There is a single playbook, `antora-playbook.yml`.
+It carries the forgiving local defaults, and the published build tightens them with command-line flags rather than a second file:
+
+[source,console]
+----
+npx antora --fetch --log-failure-level=error antora-playbook.yml
+----
+
+`--fetch`:: Pulls the latest UI bundle instead of reusing the cached copy.
+The playbook sets `fetch: false` so local rebuilds stay fast; a playbook that hard-codes `true` cannot be turned off again from the command line.
+
+`--log-failure-level=error`:: Turns a broken xref or a missing include into a failed build rather than a warning that scrolls past.
+Locally the tolerance stays at `warn`, so a half-finished page does not block a preview.
+
+The same two flags are what `.github/workflows/docs.yml` passes, so a green Docs check means the site built clean with no unresolved references.
+
+TIP: `npm run docs` and `npm run docs:publish` are shortcuts for the two invocations above.
+
+== Module layout
+
+`modules/ROOT` holds the library documentation: concepts, guides, and reference pages for {project-name} itself.
+
+`modules/cli` holds the command-line tool documentation, covering installation, each `{cli-command}` subcommand, exit codes, and automation.
+
+Cross-references between the two use the module-qualified xref form, for example `\xref:cli:commands.adoc[]` from a ROOT page, or `\xref:commands.adoc[]` from within the cli module itself.
+
+== Pages must be in nav.adoc to appear
+
+IMPORTANT: A page written under `modules/<module>/pages/` is invisible in the rendered site's navigation menu, and effectively undiscoverable, unless it is also added as an entry in that module's `nav.adoc`.
+
+When adding a new page, add its nav entry in the same change.
+The two ROOT navigation files to know about are `src/docs/modules/ROOT/nav.adoc` (this module) and `src/docs/modules/cli/nav.adoc` (the CLI module).
+A page that exists on disk but is missing from `nav.adoc` will still build without error, which makes the mistake easy to miss until someone goes looking for the page and cannot find it.
+
+== Mermaid diagrams are externalised
+
+Diagram source files are never inlined directly into a `.adoc` page.
+Instead, each diagram lives as a `.mmd` file under `modules/<module>/examples/`, and is pulled into a page with a block like this:
+
+[source,asciidoc]
+-----
+[mermaid,target=diagram-name,format=svg]
+----
+\include::example$diagram-name.mmd[]
+----
+-----
+
+Diagrams are rendered through Kroki, which is enabled by the `kroki-fetch-diagram: true` attribute set in `antora.yml`.
+Keeping the diagram source in its own `.mmd` file means it can be edited, linted, or previewed with ordinary Mermaid tooling independently of the page that includes it.
+
+== Release numbers live once
+
+The `lib-version`, `cli-version`, and `min-sdk` attributes are defined a single time in `src/docs/antora.yml`, and referenced throughout the pages as `{lib-version}`, `{cli-version}`, and `{min-sdk}`.
+A release bump therefore touches the docs in exactly one place, rather than requiring a find-and-replace across every page that mentions a version number.
+
+== Deployment
+
+The site is deployed to GitHub Pages by `.github/workflows/docs.yml` on every push to `main`.
+That workflow is what runs the published-site playbook, `antora-playbook.yml`, described above.

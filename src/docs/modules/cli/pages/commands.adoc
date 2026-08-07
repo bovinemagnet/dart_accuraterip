@@ -1,0 +1,62 @@
+= Command reference
+:description: Global flags, the full usage synopsis, and a table pointing to each dart-accuraterip subcommand's dedicated page.
+:keywords: dart-accuraterip, cli, commands, usage, help
+
+Every `{cli-command}` invocation is either a global flag or a subcommand followed by its own arguments.
+
+== Global flags
+
+`--help` (or `-h`)::
+Print top-level usage and exit 0. Also available per-subcommand: `{cli-command} <command> --help`.
+
+`--version`::
+Print the CLI version (`dart-accuraterip {cli-version}`) and exit 0.
+
+== Usage synopsis
+
+[source,console]
+----
+$ {cli-command} --help
+dart-accuraterip {cli-version} — AccurateRip CRC, disc ID, and
+database lookup for WAV rips.
+
+usage:
+  dart-accuraterip --help
+  dart-accuraterip --version
+  dart-accuraterip <command> [args...]
+
+commands:
+  crc       compute v1 and v2 CRCs for a single WAV file
+  disc-id   compute a disc ID from a list of WAV files
+  verify    end-to-end verification of a rip against the database
+  query     fetch and pretty-print a raw database response
+
+Run `dart-accuraterip <command> --help` for per-command usage.
+----
+
+An unrecognised subcommand prints the same usage block to stderr and exits with status `64` (`EX_USAGE`).
+
+== Subcommands
+
+[cols="1,3,1"]
+|===
+|Command |What it does |Reference
+
+|`crc`
+|Compute AccurateRip v1 and v2 CRCs for a single WAV file.
+|xref:crc.adoc[crc]
+
+|`disc-id`
+|Compute a disc ID from a list of WAV files given in track order.
+|xref:disc-id.adoc[disc-id]
+
+|`verify`
+|Load every track, compute CRCs, query the database, and print a PASS/FAIL table.
+|xref:verify.adoc[verify]
+
+|`query`
+|Fetch and pretty-print a raw database response from four hex/decimal arguments.
+|xref:query.adoc[query]
+|===
+
+See also xref:exit-codes.adoc[] for what each command's exit status means, and xref:automation.adoc[] for wiring these commands into scripts and CI.

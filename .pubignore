@@ -34,3 +34,12 @@ cli/
 
 # --- Benchmarks (developer-only, not part of the library) ---
 benchmark/
+
+# --- Antora documentation source and toolchain (published to
+#     GitHub Pages, not shipped in the pub.dev tarball) ---
+src/docs/
+antora-playbook.yml
+package.json
+package-lock.json
+node_modules/
+.antora-cache/

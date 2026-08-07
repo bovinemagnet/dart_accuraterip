@@ -1,0 +1,45 @@
+%% AccurateRip CRC skip window across the three track positions on a disc.
+%% The head skip is a 1-based POSITION THRESHOLD — accumulation only starts
+%% once the multiplier reaches accurateRipSkipFrames (2940), which admits
+%% frame index 2939 onward, so exactly 2939 leading frames are dropped.
+%% The tail skip is a true frame COUNT — exactly 2940 trailing frames are
+%% dropped. Same constant, two different meanings; see crc.adoc.
+%% The multiplier is always the frame's absolute 1-based position in the
+%% track — it never restarts at 1 when the counted window begins.
+flowchart TD
+    subgraph First["First track — isFirstTrack: true"]
+        direction LR
+        F1["Frames 1-2939<br/>skipped<br/>(position threshold, 2939 frames)"]
+        F2["Frames 2940-end<br/>counted<br/>multiplier = absolute position"]
+        F1 --> F2
+    end
+
+    subgraph Middle["Middle track — no flags"]
+        direction LR
+        M1["Frames 1-end<br/>counted<br/>multiplier = absolute position"]
+    end
+
+    subgraph Last["Last track — isLastTrack: true"]
+        direction LR
+        L1["Frames 1 to (end-2940)<br/>counted<br/>multiplier = absolute position"]
+        L2["Final frames<br/>skipped<br/>(true count, 2940 frames)"]
+        L1 --> L2
+    end
+
+    Note["Asymmetry: head skip is a POSITION THRESHOLD, drops 2939 frames.<br/>Tail skip is a true frame COUNT, drops 2940 frames.<br/>Same constant accurateRipSkipFrames = 2940, two different meanings."]
+
+    First ~~~ Middle
+    Middle ~~~ Last
+    Last ~~~ Note
+
+    classDef skipped fill:#f8d7da,stroke:#c0392b,color:#611a15;
+    classDef counted fill:#d4edda,stroke:#3d8b40,color:#1e4620;
+    classDef note fill:#fff3cd,stroke:#e0a800,color:#333333;
+
+    class F1,L2 skipped;
+    class F2,M1,L1 counted;
+    class Note note;
+
+    style First fill:#fafafa,stroke:#999999,stroke-width:1px;
+    style Middle fill:#fafafa,stroke:#999999,stroke-width:1px;
+    style Last fill:#fafafa,stroke:#999999,stroke-width:1px;

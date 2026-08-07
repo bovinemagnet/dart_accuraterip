@@ -1,0 +1,46 @@
+= `disc-id`
+:description: Compute an AccurateRip disc ID from a list of WAV files with the dart-accuraterip disc-id subcommand.
+:keywords: dart-accuraterip, cli, disc-id, discid, cddb
+
+Compute an AccurateRip disc ID (`discId1`, `discId2`, `cddbDiscId`, `trackCount`) from a list of WAV files representing the tracks of a single disc.
+
+== Synopsis
+
+[source,console]
+----
+$ {cli-command} disc-id <file1.wav> <file2.wav> ...
+----
+
+Positional order is track order.
+If your rip is named lexically (`track01.wav`, `track02.wav`, …) the shell's own glob expansion is all the ordering you need:
+
+[source,console]
+----
+$ {cli-command} disc-id track*.wav
+----
+
+== Sample output
+
+[source,console]
+----
+$ {cli-command} disc-id track01.wav track02.wav track03.wav
+discId1:    0x0000f21c
+discId2:    0x00027ef8
+cddbDiscId: 0x05021002
+trackCount: 3
+url:        http://www.accuraterip.com/accuraterip/c/1/2/dBAR-003-...
+----
+
+`discId1` and `discId2`::
+The two AccurateRip disc IDs computed from raw track-start sector offsets — see xref:ROOT:disc-id.adoc[] for the exact arithmetic.
+
+`cddbDiscId`::
+The FreeDB/CDDB-style disc ID, which does carry the conventional 150-sector lead-in bias (unlike `discId1`/`discId2`).
+
+`trackCount`::
+The number of WAV files given, echoed back for confirmation.
+
+`url`::
+The AccurateRip lookup URL this disc ID resolves to — the same URL `verify` and the library's xref:ROOT:lookup.adoc[] query helpers build internally.
+
+TIP: Feed this URL straight into `curl` if you want to inspect the raw response bytes yourself, or pass the same four values to xref:query.adoc[`query`] to pretty-print them.

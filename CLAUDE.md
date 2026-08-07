@@ -227,8 +227,15 @@ example/
 cli/                                 # separate package, see below
 tool/
   verify_disc.dart                   # developer-only, excluded via .pubignore
+src/docs/                            # Antora docs component -> GitHub Pages
+  antora.yml                         # component descriptor + version attributes
+  modules/ROOT/                      # library docs (pages/, examples/, nav.adoc)
+  modules/cli/                       # command-line tool docs
+antora-playbook.yml                  # the only playbook; CI adds flags
+package.json                         # Antora toolchain only, not a Dart dep
 .github/workflows/
   ci.yml                             # analyse/format/test matrix + docs + publish dry-run
+  docs.yml                           # Antora build -> GitHub Pages
   release.yml                        # compiles CLI binaries on v* tags
 ```
 
@@ -303,6 +310,28 @@ dart run example/compute_crc.dart
 dart run tool/crosscheck_reference.dart   # needs the accuraterip-checksum binary
 dart pub publish --dry-run                            # must report 0 warnings
 ```
+
+Documentation (Antora, published to GitHub Pages):
+
+```sh
+npm install                                           # once
+npx antora antora-playbook.yml                        # -> build/site/
+npx antora --fetch --log-failure-level=error antora-playbook.yml  # what CI runs
+```
+
+There is one playbook. It holds the forgiving local defaults
+(`fetch: false`, `failure_level: warn`) and CI tightens them with
+the two flags above — do not add a second playbook to express that
+difference, and do not hard-code `fetch: true`, which cannot be
+overridden from the command line.
+
+Do not use `gradle21w antora` here — this is a Dart repository with
+no Gradle wrapper. Release numbers referenced by the pages
+(`lib-version`, `cli-version`, `min-sdk`) live once in
+`src/docs/antora.yml`; bump them there when releasing. A new page
+must be added to its module's `nav.adoc` or it will not appear in
+the site navigation. Mermaid diagrams are externalised as `.mmd`
+files under `modules/<module>/examples/` and rendered through Kroki.
 
 The `cli/` package has its own cycle (run from `cli/`):
 

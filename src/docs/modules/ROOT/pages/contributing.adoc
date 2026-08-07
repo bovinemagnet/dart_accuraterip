@@ -1,0 +1,103 @@
+= Contributing
+:description: How to build, test, and validate changes to {project-name} and its CLI sub-package, plus what continuous integration enforces before a pull request can land.
+:keywords: contributing, dart analyze, dart test, dart format, CI, pull request, load-bearing tests
+
+This page covers the development cycle for working on {project-name} itself — cloning the source, running the test suite, and understanding what continuous integration checks before a pull request can land.
+
+== Getting the source
+
+Clone the repository from {repo-url}.
+
+== Root package development cycle
+
+Run these commands from the repository root:
+
+[source,console]
+----
+dart pub get
+dart analyze --fatal-warnings
+dart format --output=none --set-exit-if-changed .
+dart test
+----
+
+A few additional commands are worth knowing about:
+
+`dart test -p chrome`::
+Exercises the web CRC path — the split 16-bit multiply implementation — for real, under an actual `dart2js`/Chrome environment rather than just the Dart VM.
+See xref:platform-support.adoc[] for why the library has two CRC implementations in the first place.
+
+`dart run tool/crosscheck_reference.dart`::
+Cross-checks the CRC implementation against the real third-party `accuraterip-checksum` binary, which must be on `$PATH`.
+This is separate from the committed test suite and is not run by CI.
+
+`dart pub publish --dry-run`::
+Must report zero warnings before a release.
+
+== CLI sub-package development cycle
+
+The `cli/` directory is a separate, independent package (`{cli-name}`) with its own `pubspec.yaml`.
+Run its cycle from the `cli/` directory, not the repository root:
+
+[source,console]
+----
+dart pub get
+dart analyze --fatal-warnings
+dart test
+dart run bin/dart_accuraterip.dart --help
+----
+
+Local development resolves the library from the parent directory via `cli/pubspec_overrides.yaml`, which is ignored by `dart pub publish`.
+That means workspace changes to the root library are picked up by the CLI immediately, with no need to publish the library first.
+
+The CLI must be published with `tool/publish_cli.sh` — never `cd cli && dart pub publish` directly.
+Pub applies the root `.pubignore` when publishing a nested package, so a direct publish fails with "the pubspec is hidden".
+The script exports `cli/` to a temporary directory outside the repository, re-runs `get`/`analyze`/`test` there against the real hosted library, and dry-runs by default; pass `--publish` for the real thing.
+
+== What CI enforces
+
+`.github/workflows/ci.yml` runs the following on every push and pull request:
+
+* A 3-OS × 2-SDK-channel matrix — `ubuntu-latest`, `macos-latest`, and `windows-latest`, each on both the `stable` and `beta` Dart SDK channels — running `dart pub get`, a format check, `dart analyze --fatal-warnings`, and `dart test` for *both* the root package and the `cli/` package.
+* A separate `dartdoc` job running `dart doc --dry-run`, to make sure the generated API documentation builds cleanly.
+* A separate `publish_dry_run` job running `dart pub publish --dry-run` for the root package and `tool/publish_cli.sh` in dry-run mode for the CLI.
+
+A change is not CI-clean unless all of the above pass.
+Run the equivalent commands locally, described in the two sections above, before opening a pull request.
+
+== Load-bearing tests
+
+[IMPORTANT]
+====
+Two test files encode hard-won correctness knowledge and must never be "simplified" or have their assertions loosened.
+
+`test/accuraterip_crc_differential_test.dart` proves that the native (Dart VM) and web (`dart2js`/`dart2wasm`) CRC implementations produce bit-identical output, across more than 350 random buffers plus a hand-pinned 32-bit overflow fixture.
+If this test is weakened, a silent web/native divergence could ship unnoticed.
+
+`test/accuraterip_crc_reference_test.dart` differentially tests the CRC implementation against a line-by-line transliteration of the reference C implementation (`compute_checksums()` in `accuraterip-checksum.c`).
+It pins the exact off-by-one behaviour of the first-track and last-track skip window — {skip-frames} versus {skip-frames} minus one sample — that was wrong prior to library version 0.0.4.
+Do not rewrite this oracle to resemble the production loop, and do not "fix" the intentional off-by-one asymmetry away — it is correct, not a bug.
+====
+
+See xref:wire-format.adoc[] and xref:troubleshooting.adoc[] for the background on why these numbers are what they are.
+
+== Style conventions
+
+Documentation and code comments use British spelling throughout: *behaviour*, *licence*, *artefact*, *initialise*, *recognise*, *organise*.
+
+`dart format` enforces code layout mechanically.
+There is no separate prose linter, so reviewers check spelling by eye — keep this in mind when writing comments and doc strings.
+
+== Raising issues
+
+Report bugs and request features at {issues-url}.
+
+Protocol edge cases discovered against real AccurateRip responses are especially welcome, since the wire format is unofficial and reverse-engineered rather than documented by AccurateRip itself.
+See xref:wire-format.adoc[] for what is already known about it.
+
+== See also
+
+* xref:building-the-docs.adoc[] — building and previewing this documentation site
+* xref:wire-format.adoc[] — the reverse-engineered AccurateRip wire protocol
+* xref:troubleshooting.adoc[] — common problems and their causes
+* xref:platform-support.adoc[] — why the CRC has two implementations
+* xref:licence.adoc[] — project licensing
