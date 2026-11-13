@@ -273,8 +273,13 @@ providing the `dart-accuraterip` executable with four subcommands:
   (`cliVersion`), feeding both `--version` and the HTTP User-Agent.
   `cli/test/version_test.dart` pins it to `cli/pubspec.yaml` —
   bump both together or that test fails.
-- Exit codes: `64` (EX_USAGE) for usage errors / `FormatException`;
-  `verify` exits `1` on any CRC mismatch so it can gate a pipeline.
+- Exit codes: `64` (EX_USAGE) for usage errors / `FormatException`
+  (including an unreadable WAV); `verify` exits `1` on any CRC
+  mismatch so it can gate a pipeline; `verify` and `query` exit `69`
+  (EX_UNAVAILABLE) when the database lookup itself fails. That is
+  why they go through `cli/lib/src/lookup.dart` rather than
+  `AccurateRipClient.queryDisc`, which collapses every failure to
+  `null` — do not switch them back.
 - Commands live one-per-file under `cli/lib/src/commands/`; each
   exports a `run<Name>(List<String> argv, IOSink out, {IOSink? err})`
   function that returns the exit code, which is what the tests

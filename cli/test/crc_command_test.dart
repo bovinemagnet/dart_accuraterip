@@ -155,6 +155,34 @@ void main() {
       expect(errBuffer.toString(), contains('file not found'));
     });
 
+    test(
+      'reports an unreadable file as a usage error (exit 64), not a crash',
+      () async {
+        final path =
+            writeWav('locked.wav', buildSimpleWav(buildFourFramePcm()));
+        Process.runSync('chmod', ['000', path]);
+        try {
+          File(path).readAsBytesSync();
+          markTestSkipped('file is still readable (running as root?)');
+          return;
+        } on FileSystemException {
+          // Expected — the file really is unreadable.
+        }
+
+        final errBuffer = StringBuffer();
+        final exit = await runCrc(
+          [path],
+          _bufferSink(StringBuffer()),
+          err: _bufferSink(errBuffer),
+        );
+
+        expect(exit, equals(64));
+        expect(errBuffer.toString(), contains('cannot read'));
+        expect(errBuffer.toString(), contains(path));
+      },
+      testOn: '!windows',
+    );
+
     test('returns non-zero when the file does not exist', () async {
       final buffer = StringBuffer();
       final exit = await runCrc(

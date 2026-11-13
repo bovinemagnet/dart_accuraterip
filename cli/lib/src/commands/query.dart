@@ -11,6 +11,7 @@ import 'package:dart_accuraterip/dart_accuraterip.dart';
 
 import '../args.dart';
 import '../io_fetcher.dart';
+import '../lookup.dart';
 
 const String _usage = '''
 usage: dart-accuraterip query <discId1-hex> <discId2-hex> <cddbId-hex> <trackCount>
@@ -21,6 +22,10 @@ disc IDs computed elsewhere. Does not require any audio input.
 
 All three disc IDs are parsed as hexadecimal (with or without a
 leading "0x"). The trackCount is parsed as decimal.
+
+Exits with status 1 if no database entry exists for the disc, 64
+on usage errors, and 69 if the database could not be reached or
+returned an unreadable response.
 
 flags:
   --help     print this message
@@ -68,8 +73,7 @@ Future<int> runQuery(
     out.writeln('Querying: ${buildAccurateRipUrl(id)}');
     out.writeln('');
 
-    final client = AccurateRipClient(fetch: fetcher ?? ioFetcher);
-    final result = await client.queryDisc(id);
+    final result = await lookupDisc(id, fetcher ?? ioFetcher);
     if (result == null) {
       out.writeln('No entry in the AccurateRip database for this disc.');
       return 1;
@@ -92,6 +96,9 @@ Future<int> runQuery(
   } on FormatException catch (e) {
     (err ?? stderr).writeln('dart-accuraterip query: ${e.message}');
     return 64;
+  } on LookupFailedException catch (e) {
+    (err ?? stderr).writeln('dart-accuraterip query: ${e.message}');
+    return exitLookupFailed;
   }
 }
 

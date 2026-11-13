@@ -98,6 +98,37 @@ void main() {
       expect(exit, equals(1));
       expect(buffer.toString(), contains('No entry in the AccurateRip'));
     });
+
+    test('reports a network failure distinctly and exits 69', () async {
+      final out = StringBuffer();
+      final err = StringBuffer();
+      final exit = await runQuery(
+        ['0000f21c', '00027ef8', '05021002', '2'],
+        _bufferSink(out),
+        err: _bufferSink(err),
+        fetcher: (uri) async => throw HttpException('HTTP 500', uri: uri),
+      );
+      expect(exit, equals(69));
+      expect(out.toString(), isNot(contains('No entry')));
+      expect(err.toString(), contains('dart-accuraterip query:'));
+      expect(err.toString(), contains('lookup failed'));
+      expect(err.toString(), contains('HTTP 500'));
+    });
+
+    test('reports an unparseable response body as a lookup failure', () async {
+      // e.g. a captive-portal HTML page served with HTTP 200.
+      final out = StringBuffer();
+      final err = StringBuffer();
+      final exit = await runQuery(
+        ['0000f21c', '00027ef8', '05021002', '2'],
+        _bufferSink(out),
+        err: _bufferSink(err),
+        fetcher: (uri) async => Uint8List.fromList([1, 2, 3]),
+      );
+      expect(exit, equals(69));
+      expect(out.toString(), isNot(contains('No entry')));
+      expect(err.toString(), contains('lookup failed'));
+    });
   });
 }
 

@@ -1,5 +1,21 @@
 # Changelog
 
+## Unreleased
+
+- **`verify` and `query` no longer report a failed lookup as "No
+  entry in the AccurateRip database"** (closes #16). A network
+  error, timeout, unexpected HTTP status or unparseable response
+  is now printed on stderr and exits **69** (`EX_UNAVAILABLE`).
+  "No entry …" with exit 1 now means only that the server
+  answered and the disc is not there. **Behaviour change** for
+  scripts that branch on exit 1.
+- **An unreadable WAV file exits 64 with a one-line error**
+  instead of crashing with a stack trace and exit 255 (closes
+  #17), matching the documented exit codes.
+- Picks up the library fix for WAV files whose `data` chunk is not
+  4-byte aligned (#13), which previously crashed `crc` and
+  `verify`; this needs a library release after 0.0.5.
+
 ## 0.0.4
 
 - **First pub.dev release.** The dependency on `dart_accuraterip`

@@ -12,6 +12,7 @@ import 'package:dart_accuraterip/dart_accuraterip.dart';
 
 import '../args.dart';
 import '../io_fetcher.dart';
+import '../lookup.dart';
 import '../wav_loader.dart';
 
 const String _usage = '''
@@ -26,7 +27,8 @@ equals any entry's stored CRC in the database. See
 `AccurateRipEntry.matches` for the canonical matching rule.
 
 Exits with status 1 on any mismatch or if no database entry
-exists for the disc. Exits with status 64 on usage errors.
+exists for the disc, 64 on usage errors, and 69 if the database
+could not be reached or returned an unreadable response.
 
 flags:
   --help     print this message
@@ -77,8 +79,7 @@ Future<int> runVerify(
 
     // Query the database via the injected fetcher (defaults to
     // dart:io HttpClient in production).
-    final client = AccurateRipClient(fetch: fetcher ?? ioFetcher);
-    final dbResult = await client.queryDisc(discId);
+    final dbResult = await lookupDisc(discId, fetcher ?? ioFetcher);
     if (dbResult == null) {
       out.writeln('No entry in the AccurateRip database for this disc.');
       return 1;
@@ -164,6 +165,9 @@ Future<int> runVerify(
   } on FormatException catch (e) {
     (err ?? stderr).writeln('dart-accuraterip verify: ${e.message}');
     return 64;
+  } on LookupFailedException catch (e) {
+    (err ?? stderr).writeln('dart-accuraterip verify: ${e.message}');
+    return exitLookupFailed;
   }
 }
 
