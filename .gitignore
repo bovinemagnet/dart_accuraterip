@@ -30,4 +30,3 @@ doc/api/
 build/site/
 .antora-cache/
 node_modules/
-package-lock.json

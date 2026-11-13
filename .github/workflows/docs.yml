@@ -50,10 +50,12 @@ jobs:
         with:
           node-version: '20'
 
+      # npm ci installs exactly what package-lock.json records, so a
+      # new upstream release cannot change the site without a commit.
       - name: Install the Antora toolchain
-        run: npm install
+        run: npm ci
 
-      # --fetch pulls the latest UI bundle rather than a cached copy;
+      # --fetch ignores any cached copy of the content and UI bundle;
       # --log-failure-level=error turns a broken xref or a missing
       # include into a failed check instead of a warning nobody reads.
       # The playbook itself carries the forgiving local defaults.
