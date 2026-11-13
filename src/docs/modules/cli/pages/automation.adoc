@@ -43,6 +43,9 @@ encode_flac.sh
 
 `set -e` means the script stops automatically on `verify`'s non-zero exit — nothing downstream of a failed rip runs.
 
+NOTE: Exit code `69` means the AccurateRip database could not be reached, not that the rip is bad.
+If you want to retry or continue in that case, check `$?` explicitly instead of relying on `set -e`.
+
 == GitHub Actions step
 
 [source,yaml]
@@ -54,6 +57,7 @@ encode_flac.sh
 ----
 
 The step fails the job automatically on a non-zero exit code, which is exactly xref:exit-codes.adoc[what `verify` returns] on any mismatch.
+It also fails with `69` if the database cannot be reached, so a transient network problem looks different from a bad rip in the job log.
 
 == Capture output to a log
 

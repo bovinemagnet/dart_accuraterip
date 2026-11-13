@@ -2,7 +2,7 @@
 :description: Reference table of dart-accuraterip exit codes and where each command's output goes, for scripting and CI use.
 :keywords: dart-accuraterip, cli, exit codes, stderr, stdout, scripting
 
-Every `{cli-command}` subcommand returns one of three exit codes, making the tool straightforward to gate a pipeline on.
+Every `{cli-command}` subcommand returns one of four exit codes, making the tool straightforward to gate a pipeline on.
 
 [cols="1,2,3"]
 |===
@@ -14,12 +14,19 @@ Every `{cli-command}` subcommand returns one of three exit codes, making the too
 
 |`1`
 |Verification failure
-|`verify` exits `1` if any track FAILs, or if the disc has no entry in the database at all. `query` exits `1` if the disc has no database entry.
+|`verify` exits `1` if any track FAILs, or if the disc has no entry in the database at all. `query` exits `1` if the disc has no database entry. "No entry" means the server answered (404 or an empty body) and the disc genuinely is not there, or the disc ID is wrong.
 
 |`64` (`EX_USAGE`)
 |Usage error
 |Bad or missing arguments, an unreadable file, a malformed WAV, non-Red-Book audio, or any other `FormatException` raised while parsing input. An unrecognised subcommand also exits `64`.
+
+|`69` (`EX_UNAVAILABLE`)
+|Database unavailable
+|`verify` and `query` only. The AccurateRip lookup itself failed: a network error, DNS failure, timeout, an HTTP status other than 200 or 404, or a response body that cannot be parsed as an AccurateRip response.
 |===
+
+TIP: In a pipeline, `69` means "try again later" rather than "bad rip", because nothing was compared.
+Scripts may want to treat it differently from `1`, for example by retrying instead of failing the rip.
 
 == stdout vs stderr
 

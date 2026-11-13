@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- **Fixed: `computeArV1` / `computeArV2` threw `RangeError` on PCM
+  views not aligned to 4 bytes** (closes #13). `extractPcmFromWav`
+  returns a view at wherever the `data` chunk sits, so any chunk
+  before it whose size is not a multiple of 4 — a typical
+  `LIST`/`INFO` chunk written by ffmpeg — made the `FromWav`
+  wrappers fail on valid Red Book WAVs. Misaligned views are now
+  copied to an aligned buffer first; aligned input is unchanged
+  and output is bit-identical. Applies to both the native and web
+  implementations.
+
 ## 0.0.5
 
 - **`computeArV1FromWav` / `computeArV2FromWav` now reject

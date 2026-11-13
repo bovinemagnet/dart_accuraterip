@@ -65,9 +65,10 @@ Future<void> main(List<String> args) async {
 
   final result = await client.queryDisc(discId);
   if (result == null) {
-    print('No entry in the AccurateRip database for this disc.');
-    print('Either this exact disc has never been submitted, or the '
-        'disc ID is wrong (check the track count and order).');
+    print('No usable entry in the AccurateRip database for this disc.');
+    print('Either this exact disc has never been submitted, the '
+        'disc ID is wrong (check the track count and order), or the '
+        'lookup failed (offline, timeout or an HTTP error).');
     return;
   }
 
@@ -117,7 +118,7 @@ A verification run lands in one of four buckets:
 | Outcome | What it means
 
 | `result == null` — no entries at all
-| Either this disc has never been submitted to AccurateRip, or the disc ID is wrong. Double-check the track order and that every track's frame count came from the full, untrimmed WAV — a missing or reordered track changes every offset from that point on (see xref:disc-id.adoc[]).
+| Either this disc has never been submitted to AccurateRip, the disc ID is wrong, or the lookup failed (offline, a timeout, or a non-404 HTTP error, which this recipe's fetcher throws on). Double-check the track order and that every track's frame count came from the full, untrimmed WAV — a missing or reordered track changes every offset from that point on (see xref:disc-id.adoc[]). `queryDisc` returns `null` for every failure by design, so callers who need to tell these cases apart should call `buildAccurateRipUrl` and `parseAccurateRipResponse` with their own fetcher directly (see xref:lookup.adoc[]).
 
 | Entries present, but no track matches
 | The rip is not bit-accurate for the pressings on record, *or* this is a genuinely different pressing than any submitted so far, *or* the ripping drive has a read-offset problem that shifts every sample by a constant number of frames. A read-offset issue typically causes every track to mismatch at once, which is a useful diagnostic signal.

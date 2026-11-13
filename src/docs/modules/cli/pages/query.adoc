@@ -39,10 +39,12 @@ Track 02: 1 pressing(s)
 ----
 
 If the disc isn't in the database, `query` prints `No entry in the AccurateRip database for this disc.` and exits `1`.
+If the lookup itself fails (network error, timeout, an unexpected HTTP status or an unparseable response), `query` instead prints `dart-accuraterip query: database lookup failed: ...` to stderr and exits `69`.
 
 == Exit codes
 
 `0` on a successful lookup (even if some tracks have zero pressings listed).
 `1` if the disc has no database entry at all.
 `64` (`EX_USAGE`) if any disc ID doesn't fit in 32 bits or `trackCount` isn't a positive integer.
+`69` (`EX_UNAVAILABLE`) if the database lookup fails, as distinct from the disc having no entry.
 See xref:exit-codes.adoc[].

@@ -28,17 +28,11 @@ on:
       - '.github/workflows/docs.yml'
   workflow_dispatch:
 
-# Allow the deploy job to publish to Pages using the OIDC token.
+# The build (which also runs for pull requests) only needs to read
+# the repository. The Pages permissions are granted to the deploy
+# job alone, below.
 permissions:
   contents: read
-  pages: write
-  id-token: write
-
-# Never run two deployments at once; queue instead of cancelling so
-# a half-published site is not left behind.
-concurrency:
-  group: pages
-  cancel-in-progress: false
 
 jobs:
   build:
@@ -73,10 +67,23 @@ jobs:
 
   deploy:
     name: Deploy to GitHub Pages
-    # Only main deploys; pull requests stop after the build check.
-    if: github.event_name != 'pull_request'
+    # Only main deploys; pull requests (and manual runs on other
+    # branches) stop after the build check.
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
+    # Publish to Pages using the OIDC token.
+    permissions:
+      pages: write
+      id-token: write
+    # Never run two deployments at once; queue instead of cancelling
+    # so a half-published site is not left behind. Scoped to this
+    # job so pull-request builds never join the group: GitHub keeps
+    # only one pending run per group, and a PR build queued there
+    # would silently replace a pending main deployment.
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

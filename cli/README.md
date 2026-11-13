@@ -79,7 +79,9 @@ track checks whether either locally computed CRC equals any
 entry's stored CRC (see
 [`AccurateRipEntry.matches`](https://pub.dev/documentation/dart_accuraterip/latest/dart_accuraterip/AccurateRipEntry/matches.html)).
 Exits with status 1 on any mismatch so you can wire it into a
-shell pipeline.
+shell pipeline. A failed database lookup (offline, timeout, HTTP
+error, unreadable response) is reported on stderr and exits 69
+instead, so "could not check" is never mistaken for "bad rip".
 
 ### `query` — raw database lookup, no audio
 

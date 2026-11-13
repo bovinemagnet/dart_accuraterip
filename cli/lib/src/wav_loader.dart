@@ -20,7 +20,7 @@ import 'package:dart_accuraterip/dart_accuraterip.dart';
 /// float, and 48 kHz inputs are rejected up front.
 ///
 /// Throws a [FormatException] tagged with the file path on any
-/// failure — missing file, not a RIFF/WAVE stream, no `data`
+/// failure — missing or unreadable file, not a RIFF/WAVE stream, no `data`
 /// chunk, missing `fmt ` chunk, or non-Red-Book audio. The
 /// tagged message lets the CLI print a single-line error without
 /// stack traces leaking into stdout.
@@ -29,7 +29,16 @@ Uint8List loadWavPcm(String path) {
   if (!file.existsSync()) {
     throw FormatException('file not found: $path');
   }
-  final bytes = file.readAsBytesSync();
+  final Uint8List bytes;
+  try {
+    bytes = file.readAsBytesSync();
+  } on FileSystemException catch (e) {
+    // Permission denied, a directory, an I/O error: all part of the
+    // same uniform FormatException contract (caught → EX_USAGE).
+    throw FormatException(
+      'cannot read $path: ${e.osError?.message ?? e.message}',
+    );
+  }
   try {
     parseWavFormat(bytes).requireRedBookCdAudio();
     return extractPcmFromWav(bytes);

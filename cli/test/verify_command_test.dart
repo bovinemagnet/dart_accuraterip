@@ -195,6 +195,28 @@ void main() {
       );
     });
 
+    test(
+        'reports a failed lookup (network error) distinctly from a missing '
+        'entry, exiting 69', () async {
+      final pcm = buildPcm(500);
+      final path = writeWav('track.wav', buildSimpleWav(pcm));
+
+      final out = StringBuffer();
+      final err = StringBuffer();
+      final exit = await runVerify(
+        [path],
+        _bufferSink(out),
+        err: _bufferSink(err),
+        fetcher: (_) async => throw const SocketException('Failed host lookup'),
+      );
+
+      expect(exit, equals(69));
+      expect(out.toString().toLowerCase(), isNot(contains('no entry')));
+      expect(err.toString(), contains('dart-accuraterip verify:'));
+      expect(err.toString(), contains('lookup failed'));
+      expect(err.toString(), contains('Failed host lookup'));
+    });
+
     test('--help returns zero and prints usage', () async {
       final buffer = StringBuffer();
       final exit = await runVerify(
