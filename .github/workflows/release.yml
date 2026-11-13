@@ -37,8 +37,12 @@ jobs:
           TARGET: ${{ matrix.target }}
           EXT: ${{ matrix.ext }}
         run: |
-          mkdir -p ../dist
-          dart compile exe bin/dart_accuraterip.dart -o "../dist/dart_accuraterip-${TARGET}${EXT}"
+          # The executable inside every archive is called
+          # dart-accuraterip, the same name `pub global activate`
+          # installs, so the documented commands work unchanged. The
+          # platform lives only in the archive name.
+          mkdir -p "../dist/${TARGET}"
+          dart compile exe bin/dart_accuraterip.dart -o "../dist/${TARGET}/dart-accuraterip${EXT}"
       - name: Package archive
         shell: bash
         env:
@@ -46,11 +50,11 @@ jobs:
           EXT: ${{ matrix.ext }}
           RUNNER_OS: ${{ runner.os }}
         run: |
-          cd dist
+          cd "dist/${TARGET}"
           if [ "$RUNNER_OS" = "Windows" ]; then
-            7z a "dart_accuraterip-${TARGET}.zip" "dart_accuraterip-${TARGET}${EXT}"
+            7z a "../dart_accuraterip-${TARGET}.zip" "dart-accuraterip${EXT}"
           else
-            tar czf "dart_accuraterip-${TARGET}.tar.gz" "dart_accuraterip-${TARGET}${EXT}"
+            tar czf "../dart_accuraterip-${TARGET}.tar.gz" "dart-accuraterip${EXT}"
           fi
       - uses: actions/upload-artifact@v4
         with:

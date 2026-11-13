@@ -15,6 +15,14 @@
 - Picks up the library fix for WAV files whose `data` chunk is not
   4-byte aligned (#13), which previously crashed `crc` and
   `verify`; this needs a library release after 0.0.5.
+- **Prebuilt release archives now contain an executable named
+  `dart-accuraterip`** (`dart-accuraterip.exe` on Windows), matching
+  the name `pub global activate` installs and every documented
+  command (closes #18). The platform appears only in the archive
+  name (`dart_accuraterip-<target>.tar.gz` / `.zip`), and the bare
+  Windows `.exe` is no longer attached alongside its `.zip`.
+  Archives up to v0.0.5 contain `dart_accuraterip-<target>`, which
+  must be renamed.
 
 ## 0.0.4
 
