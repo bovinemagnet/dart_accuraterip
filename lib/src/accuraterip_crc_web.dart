@@ -61,10 +61,7 @@ int computeArV1(
   bool isFirstTrack = false,
   bool isLastTrack = false,
 }) {
-  final samples = pcmData.buffer.asUint32List(
-    pcmData.offsetInBytes,
-    pcmData.lengthInBytes ~/ 4,
-  );
+  final samples = _frames(pcmData);
 
   final totalSamples = samples.length;
   // Window and absolute-position multiplier kept in lock-step with
@@ -91,10 +88,7 @@ int computeArV2(
   bool isFirstTrack = false,
   bool isLastTrack = false,
 }) {
-  final samples = pcmData.buffer.asUint32List(
-    pcmData.offsetInBytes,
-    pcmData.lengthInBytes ~/ 4,
-  );
+  final samples = _frames(pcmData);
 
   final totalSamples = samples.length;
   // Window and absolute-position multiplier kept in lock-step with
@@ -166,4 +160,20 @@ int _mulLow32(int sample, int multiplier) {
 
   final lowSum = p00 + ((p01 & 0xFFFF) << 16) + ((p10 & 0xFFFF) << 16);
   return lowSum.toUnsigned(32);
+}
+
+/// View [pcmData] as little-endian uint32 stereo frames.
+///
+/// `asUint32List` needs a 4-byte-aligned offset, but a view returned
+/// by `extractPcmFromWav` sits wherever the `data` chunk happens to
+/// be — any chunk before it with a size that is not a multiple of 4
+/// (a typical `LIST`/`INFO` chunk) misaligns it. Such views are
+/// copied to a fresh, aligned buffer first; aligned views are used
+/// in place. A trailing partial frame is ignored either way.
+Uint32List _frames(Uint8List pcmData) {
+  final frameCount = pcmData.lengthInBytes ~/ 4;
+  if (pcmData.offsetInBytes % 4 == 0) {
+    return pcmData.buffer.asUint32List(pcmData.offsetInBytes, frameCount);
+  }
+  return Uint8List.fromList(pcmData).buffer.asUint32List(0, frameCount);
 }

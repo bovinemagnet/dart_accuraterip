@@ -49,12 +49,19 @@ Uint8List buildSimpleWav(
 
 /// Same as [buildSimpleWav] but also sneaks a junk `LIST` chunk
 /// between `fmt ` and `data`, to prove the chunk walker is tolerant.
-Uint8List buildWavWithExtraListChunk(Uint8List pcm) {
+///
+/// [listPayloadLength] must be even (RIFF pads odd chunks). A length
+/// that is not a multiple of 4 leaves the `data` payload at an offset
+/// that is not 4-byte aligned, as real-world `LIST`/`INFO` chunks do.
+Uint8List buildWavWithExtraListChunk(
+  Uint8List pcm, {
+  int listPayloadLength = 8,
+}) {
   final builder = BytesBuilder();
 
   builder.add(ascii('RIFF'));
   // 36 bytes of fmt + 8 bytes of LIST header + LIST payload + 8 bytes of data header + pcm.
-  const listPayload = <int>[0, 1, 2, 3, 4, 5, 6, 7]; // 8 bytes
+  final listPayload = List<int>.generate(listPayloadLength, (i) => i);
   builder.add(
     _u32le(36 + (8 + listPayload.length) + pcm.length),
   );
@@ -208,6 +215,17 @@ void main() {
         computeArV1FromWav(wav, isLastTrack: true),
         equals(computeArV1(pcm, isLastTrack: true)),
       );
+    });
+
+    test('handle a data payload that is not 4-byte aligned in the file', () {
+      // A 2-byte LIST payload puts the data payload at byte 54, so
+      // extractPcmFromWav returns a view whose offsetInBytes is 54.
+      final pcm = fourFramePcm();
+      final wav = buildWavWithExtraListChunk(pcm, listPayloadLength: 2);
+      expect(extractPcmFromWav(wav).offsetInBytes % 4, isNot(0));
+
+      expect(computeArV1FromWav(wav), equals(computeArV1(pcm)));
+      expect(computeArV2FromWav(wav), equals(computeArV2(pcm)));
     });
   });
 

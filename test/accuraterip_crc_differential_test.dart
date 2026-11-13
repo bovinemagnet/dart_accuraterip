@@ -173,6 +173,59 @@ void main() {
       }
     });
 
+    test('both accept a view that is not 4-byte aligned in its buffer', () {
+      // extractPcmFromWav returns a sublist view at whatever offset
+      // the data chunk sits, which need not be a multiple of 4.
+      final rng = Random(0x0a11e4ed);
+      for (final offset in [1, 2, 3]) {
+        final aligned = randomPcm(rng, 6000);
+        final backing = Uint8List(offset + aligned.length)
+          ..setRange(offset, offset + aligned.length, aligned);
+        final misaligned = Uint8List.sublistView(backing, offset);
+
+        for (final (first, last) in [
+          (false, false),
+          (true, false),
+          (false, true),
+          (true, true),
+        ]) {
+          final reason = 'offset $offset, first=$first, last=$last';
+          final v1 = native.computeArV1(
+            aligned,
+            isFirstTrack: first,
+            isLastTrack: last,
+          );
+          final v2 = native.computeArV2(
+            aligned,
+            isFirstTrack: first,
+            isLastTrack: last,
+          );
+          expect(
+            native.computeArV1(misaligned,
+                isFirstTrack: first, isLastTrack: last),
+            equals(v1),
+            reason: 'native v1, $reason',
+          );
+          expect(
+            native.computeArV2(misaligned,
+                isFirstTrack: first, isLastTrack: last),
+            equals(v2),
+            reason: 'native v2, $reason',
+          );
+          expect(
+            web.computeArV1(misaligned, isFirstTrack: first, isLastTrack: last),
+            equals(v1),
+            reason: 'web v1, $reason',
+          );
+          expect(
+            web.computeArV2(misaligned, isFirstTrack: first, isLastTrack: last),
+            equals(v2),
+            reason: 'web v2, $reason',
+          );
+        }
+      }
+    });
+
     test('both implementations expose the same accurateRipSkipFrames', () {
       expect(web.accurateRipSkipFrames, equals(native.accurateRipSkipFrames));
       expect(web.accurateRipSkipFrames, equals(2940));
