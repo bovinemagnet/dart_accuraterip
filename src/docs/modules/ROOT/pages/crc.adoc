@@ -59,7 +59,7 @@ So `accurateRipSkipFrames` is a 1-based *position threshold* at the head of a tr
 
 Releases of {project-name} up to 0.0.3 skipped 2940 frames at the head and restarted the multiplier at 1 for the counted window.
 Both mistakes together meant every first-track CRC was wrong before 0.0.4 — first tracks would never match the database even for a bit-perfect rip.
-This is fixed and pinned by a differential test against a line-by-line transliteration of the reference C implementation; see the "Wire format" reference page for the full history if you are auditing the maths yourself.
+This is fixed and pinned by a differential test against a line-by-line transliteration of the reference C implementation; see the 0.0.4 entry of the {repo-url}/blob/main/CHANGELOG.md[changelog] and `test/accuraterip_crc_reference_test.dart` if you are auditing the maths yourself.
 
 .Skip window over a three-track disc
 [mermaid,target=crc-skip-window,format=svg]

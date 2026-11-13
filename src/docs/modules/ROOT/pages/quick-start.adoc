@@ -55,15 +55,15 @@ final id = AccurateRipDiscId.fromTrackSampleCounts([
 
 If you are working from WAV files rather than a CD TOC, the sample
 count for each track is its data-chunk length divided by the frame
-size (4 bytes for 16-bit stereo). See
-xref:disc-id.adoc[Computing a disc ID] for how to derive it from a
-FLAC `STREAMINFO` block or a cue sheet instead.
+size (4 bytes for 16-bit stereo). For FLAC files, the `STREAMINFO`
+block's total-samples field is already the frame count; see
+xref:disc-id.adoc[Computing a disc ID].
 
 == 3. Query the database with an injected fetcher
 
 {project-name} has no HTTP dependency of its own. Supply a fetcher
-callback — here using `package:http`, a *dev* dependency you add
-yourself:
+callback — here using `package:http`, which your application adds
+as a regular dependency (`dart pub add http`):
 
 [source,dart]
 ----

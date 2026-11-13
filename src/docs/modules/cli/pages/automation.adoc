@@ -7,21 +7,21 @@ This page collects recipes for the common cases.
 
 == Verify several album directories in a loop
 
-[source,bash]
+[source,bash,subs="attributes+"]
 ----
 #!/usr/bin/env bash
 set -euo pipefail
 
 status=0
 for dir in rips/*/; do
-  echo "== ${dir} =="
-  if ! {cli-command} verify "${dir}"track*.wav; then
-    echo "FAILED: ${dir}" >&2
+  echo "== $\{dir} =="
+  if ! {cli-command} verify "$\{dir}"track*.wav; then
+    echo "FAILED: $\{dir}" >&2
     status=1
   fi
 done
 
-exit "${status}"
+exit "$\{status}"
 ----
 
 This keeps going after a failure in one album so you get a full report, then reports the aggregate failure at the end via the exit code.
@@ -30,7 +30,7 @@ This keeps going after a failure in one album so you get a full report, then rep
 
 If you'd rather stop at the first bad rip — for example, straight after a ripper finishes a disc — check the status directly:
 
-[source,bash]
+[source,bash,subs="attributes+"]
 ----
 #!/usr/bin/env bash
 set -euo pipefail
@@ -48,7 +48,7 @@ If you want to retry or continue in that case, check `$?` explicitly instead of 
 
 == GitHub Actions step
 
-[source,yaml]
+[source,yaml,subs="attributes+"]
 ----
 - name: Verify rip against AccurateRip
   run: |
@@ -63,12 +63,12 @@ It also fails with `69` if the database cannot be reached, so a transient networ
 
 Keep the human-readable table and any errors for later inspection, independently of the pass/fail decision:
 
-[source,bash]
+[source,bash,subs="attributes+"]
 ----
 {cli-command} verify track*.wav >verify.log 2>verify.err
 status=$?
 cat verify.log
-exit "${status}"
+exit "$\{status}"
 ----
 
 == Don't hammer the AccurateRip server

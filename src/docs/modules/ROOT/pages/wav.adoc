@@ -147,7 +147,7 @@ $ flac -d track01.flac -o track01.wav
 ----
 
 then feed the resulting file to `extractPcmFromWav` or the `FromWav` wrappers as above.
-{project-name} does not decode compressed audio itself and has no plans to — see the Design invariants note on zero runtime dependencies.
+{project-name} does not decode compressed audio itself and has no plans to, because it deliberately keeps zero runtime dependencies (see xref:index.adoc#zero-runtime-dependencies[Zero runtime dependencies]).
 
 == See also
 

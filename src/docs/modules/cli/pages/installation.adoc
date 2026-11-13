@@ -8,7 +8,7 @@ There are three ways to get `{cli-command}` onto your `PATH`: activate it from p
 
 The published route, and the one most people want:
 
-[source,console]
+[source,console,subs="attributes+"]
 ----
 $ dart pub global activate {cli-name}
 ----
@@ -19,7 +19,7 @@ This resolves `{cli-name}` version {cli-version} from pub.dev and installs its `
 
 Useful when working on the library or CLI itself, or to pick up unreleased changes:
 
-[source,console]
+[source,console,subs="attributes+"]
 ----
 $ git clone {repo-url}.git
 $ cd dart_accuraterip
@@ -40,17 +40,28 @@ export PATH="$PATH:$HOME/.pub-cache/bin"
 
 == Prebuilt native binaries
 
-Every tagged release (`v*`) compiles native binaries for three platforms and attaches them to the GitHub release:
+Every tagged release (`v*`) compiles native binaries for three platforms and attaches one archive per platform to the GitHub release:
 
-* `dart_accuraterip-linux-x64`
-* `dart_accuraterip-macos-arm64`
-* `dart_accuraterip-windows-x64.exe`
+* `dart_accuraterip-linux-x64.tar.gz`
+* `dart_accuraterip-macos-arm64.tar.gz`
+* `dart_accuraterip-windows-x64.zip`
 
-Download the archive for your platform from the {repo-url}/releases[releases page], extract it, and put the binary on your `PATH` directly — no Dart SDK required at runtime.
+Each archive holds a single executable named `{cli-command}` (`{cli-command}.exe` on Windows), the same name the pub.dev route installs.
+Download the archive for your platform from the {repo-url}/releases[releases page], extract it, and move the executable onto your `PATH` — no Dart SDK required at runtime.
+On Linux, for example:
+
+[source,console,subs="attributes+"]
+----
+$ tar xzf dart_accuraterip-linux-x64.tar.gz
+$ mv {cli-command} ~/.local/bin/
+----
+
+NOTE: Releases up to and including v0.0.5 named the executable inside the archive `dart_accuraterip-<target>` (`dart_accuraterip-windows-x64.exe` on Windows).
+Rename it to `{cli-command}` when installing one of those, or the commands on these pages will not be found.
 
 == Verify the install
 
-[source,console]
+[source,console,subs="attributes+"]
 ----
 $ {cli-command} --version
 dart-accuraterip {cli-version}

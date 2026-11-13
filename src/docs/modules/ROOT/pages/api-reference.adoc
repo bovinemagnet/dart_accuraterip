@@ -88,7 +88,7 @@ TIP: To deliberately checksum a non-conforming WAV — bypassing the Red Book ch
 
 == Disc ID
 
-See xref:disc-id.adoc[] for the offset arithmetic and worked examples from FLAC `STREAMINFO` data.
+See xref:disc-id.adoc[] for the offset arithmetic and where to get each track's sample count, including from FLAC `STREAMINFO` data.
 
 [cols="2,3"]
 |===

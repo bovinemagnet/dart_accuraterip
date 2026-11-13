@@ -7,7 +7,7 @@ Unlike xref:verify.adoc[`verify`], `query` needs no audio at all — just the fo
 
 == Synopsis
 
-[source,console]
+[source,console,subs="attributes+"]
 ----
 $ {cli-command} query <discId1-hex> <discId2-hex> <cddbId-hex> <trackCount>
 ----
@@ -27,16 +27,23 @@ See also xref:ROOT:lookup.adoc[] for how the library builds the request URL and 
 
 == Sample session
 
-[source,console]
+[source,console,subs="attributes+"]
 ----
 $ {cli-command} query 0000f21c 00027ef8 05021002 2
 Querying: http://www.accuraterip.com/accuraterip/c/1/2/dBAR-002-0000f21c-00027ef8-05021002.bin
 
-Track 01: 1 pressing(s)
-  confidence=  5  crc=0xdeadbeef  frame450Crc=0x00000000
-Track 02: 1 pressing(s)
-  confidence= 42  crc=0xcafebabe  frame450Crc=0x12345678
+Track 01: 2 pressing(s)
+  confidence= 12  crc=0x284fc705  frame450Crc=0x3b97f8a4
+  confidence=  9  crc=0xdc77f9ab  frame450Crc=0x00000000
+Track 02: 2 pressing(s)
+  confidence= 20  crc=0x9cc1f32e  frame450Crc=0xdc5500de
+  confidence=  9  crc=0xdd97d2c3  frame450Crc=0x00000000
 ----
+
+For each track here, the two pressings hold the v1 and the v2 CRC of the same audio, submitted by different rippers — which is why xref:ROOT:wire-format.adoc[] says a client must try both.
+Confidence values grow as more rips are submitted, so live output may show higher numbers than this.
+
+Requests carry the header `User-Agent: dart-accuraterip/{cli-version}` so the database maintainers can see what is generating the traffic, and give up after a 10-second timeout.
 
 If the disc isn't in the database, `query` prints `No entry in the AccurateRip database for this disc.` and exits `1`.
 If the lookup itself fails (network error, timeout, an unexpected HTTP status or an unparseable response), `query` instead prints `dart-accuraterip query: database lookup failed: ...` to stderr and exits `69`.

@@ -6,7 +6,7 @@ Compute an AccurateRip disc ID (`discId1`, `discId2`, `cddbDiscId`, `trackCount`
 
 == Synopsis
 
-[source,console]
+[source,console,subs="attributes+"]
 ----
 $ {cli-command} disc-id <file1.wav> <file2.wav> ...
 ----
@@ -14,21 +14,21 @@ $ {cli-command} disc-id <file1.wav> <file2.wav> ...
 Positional order is track order.
 If your rip is named lexically (`track01.wav`, `track02.wav`, …) the shell's own glob expansion is all the ordering you need:
 
-[source,console]
+[source,console,subs="attributes+"]
 ----
 $ {cli-command} disc-id track*.wav
 ----
 
 == Sample output
 
-[source,console]
+[source,console,subs="attributes+"]
 ----
-$ {cli-command} disc-id track01.wav track02.wav track03.wav
+$ {cli-command} disc-id track01.wav track02.wav
 discId1:    0x0000f21c
 discId2:    0x00027ef8
 cddbDiscId: 0x05021002
-trackCount: 3
-url:        http://www.accuraterip.com/accuraterip/c/1/2/dBAR-003-...
+trackCount: 2
+url:        http://www.accuraterip.com/accuraterip/c/1/2/dBAR-002-0000f21c-00027ef8-05021002.bin
 ----
 
 `discId1` and `discId2`::

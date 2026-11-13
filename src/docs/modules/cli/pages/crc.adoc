@@ -6,7 +6,7 @@ Compute AccurateRip v1 and v2 CRCs over a single WAV file's PCM payload and prin
 
 == Synopsis
 
-[source,console]
+[source,console,subs="attributes+"]
 ----
 $ {cli-command} crc [--first] [--last] <file.wav>
 ----
@@ -14,7 +14,8 @@ $ {cli-command} crc [--first] [--last] <file.wav>
 == Flags
 
 `--first`::
-Skip the first {skip-frames} stereo frames — use this when the file is the first track on the disc.
+Skip the first 2939 stereo frames — use this when the file is the first track on the disc.
+Accumulation starts at frame position {skip-frames}, which is why the head skip is one frame shorter than the tail skip; see xref:ROOT:crc.adoc[] for the details.
 
 `--last`::
 Skip the last {skip-frames} stereo frames — use this when the file is the last track on the disc.
@@ -29,7 +30,7 @@ TIP: The choice of flags matters. AccurateRip's own database entries skip a lead
 
 == Sample session
 
-[source,console]
+[source,console,subs="attributes+"]
 ----
 $ {cli-command} crc --first track01.wav
 v1: 284fc705

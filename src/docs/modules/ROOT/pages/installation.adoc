@@ -6,14 +6,14 @@
 
 From the root of a Dart or Flutter project:
 
-[source,console]
+[source,console,subs="attributes+"]
 ----
 dart pub add {project-name}
 ----
 
 Or, for a Flutter project:
 
-[source,console]
+[source,console,subs="attributes+"]
 ----
 flutter pub add {project-name}
 ----
@@ -21,7 +21,7 @@ flutter pub add {project-name}
 Either command adds an entry to `pubspec.yaml` and fetches the
 package. To add it by hand instead:
 
-[source,yaml]
+[source,yaml,subs="attributes+"]
 ----
 dependencies:
   dart_accuraterip: ^{lib-version}
