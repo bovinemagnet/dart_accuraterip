@@ -76,7 +76,7 @@ All types and functions are re-exported from the single entry point
 
 Renaming or changing the signature of any of these is a breaking
 change. Bump the `version:` field in `pubspec.yaml` (currently
-`0.0.4`) and add an entry to `CHANGELOG.md`.
+`0.0.6`) and add an entry to `CHANGELOG.md`.
 
 ## Wire-format notes
 
@@ -224,6 +224,7 @@ test/
 example/
   compute_crc.dart
   query_disc.dart                    # uses package:http as the fetcher
+benchmark/                           # CRC throughput (excluded via .pubignore)
 cli/                                 # separate package, see below
 tool/
   verify_disc.dart                   # developer-only, excluded via .pubignore
@@ -312,6 +313,7 @@ dart test test/accuraterip_crc_test.dart              # single test file
 dart test test/accuraterip_crc_test.dart -n 'v1 vs v2 divergence' # single test by name
 dart test -p chrome                                   # exercises the web CRC path for real
 dart run example/compute_crc.dart
+dart run benchmark/crc_benchmark.dart              # CRC throughput, aligned vs misaligned
 dart run tool/crosscheck_reference.dart   # needs the accuraterip-checksum binary
 dart pub publish --dry-run                            # must report 0 warnings
 ```
@@ -387,7 +389,10 @@ GPL-3.0, matching the author's `dart_metaflac` package.
   developer-only script (excluded via `.pubignore`) and shells out
   to the `flac` CLI for PCM decoding plus optionally to
   `accuraterip-checksum` for a third-party cross-check.
-- Add a `benchmark/` directory showing CRC throughput on Dart VM.
+- ~~Add a `benchmark/` directory showing CRC throughput on Dart VM.~~
+  **Done** — `dart run benchmark/crc_benchmark.dart`; it also times
+  the misaligned-input copy path added for #13. Excluded from the
+  pub tarball via `.pubignore`.
 - ~~Add a minimal `.github/workflows/ci.yaml` running `dart analyze`,
   `dart format --set-exit-if-changed`, and `dart test`.~~ **Done** —
   see `.github/workflows/ci.yml` and the Continuous-integration
