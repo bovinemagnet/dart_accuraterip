@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.0.6
 
 - **Fixed: `computeArV1` / `computeArV2` threw `RangeError` on PCM
   views not aligned to 4 bytes** (closes #13). `extractPcmFromWav`
