@@ -14,7 +14,7 @@ Print the CLI version (`dart-accuraterip {cli-version}`) and exit 0.
 
 == Usage synopsis
 
-[source,console]
+[source,console,subs="attributes+"]
 ----
 $ {cli-command} --help
 dart-accuraterip {cli-version} — AccurateRip CRC, disc ID, and

@@ -15,7 +15,7 @@ external Uri buildAccurateRipUrl(AccurateRipDiscId id);
 The AccurateRip database is served over plain HTTP at `{ar-base-url}`.
 `buildAccurateRipUrl` constructs a path of the shape:
 
-[source]
+[source,subs="attributes+"]
 ----
 {ar-base-url}<a>/<b>/<c>/dBAR-<nnn>-<discId1>-<discId2>-<cddbDiscId>.bin
 ----
@@ -90,28 +90,40 @@ Future<Uint8List> fetch(Uri url) async {
 
 [source,dart]
 ----
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
+const _timeout = Duration(seconds: 10);
+
 Future<Uint8List> fetch(Uri url) async {
-  final client = HttpClient();
+  final client = HttpClient()..connectionTimeout = _timeout;
   try {
     final request = await client.getUrl(url);
-    final response = await request.close();
-    if (response.statusCode == HttpStatus.notFound) return Uint8List(0);
+    request.headers.set(HttpHeaders.userAgentHeader, 'my-ripper/1.0');
+    final response = await request.close().timeout(_timeout);
+    if (response.statusCode == HttpStatus.notFound) {
+      await response.drain<void>();
+      return Uint8List(0);
+    }
     if (response.statusCode != HttpStatus.ok) {
+      await response.drain<void>();
       throw HttpException('HTTP ${response.statusCode}', uri: url);
     }
-    final bytes = await response.fold<BytesBuilder>(
-      BytesBuilder(),
-      (builder, chunk) => builder..add(chunk),
-    );
-    return bytes.takeBytes();
+    final builder = BytesBuilder(copy: false);
+    await for (final chunk in response) {
+      builder.add(chunk);
+    }
+    return builder.toBytes();
   } finally {
-    client.close();
+    client.close(force: true);
   }
 }
 ----
+
+Drain the body before returning or throwing on a non-200 status: an unread response keeps its connection open, and `client.close()` then waits for it, which can leave a command-line program hanging at exit.
+`close(force: true)` and the timeouts make sure a stalled server cannot do the same.
+This is the shape of the fetcher the CLI itself uses.
 
 TIP: Map a `404 Not Found` to an empty `Uint8List` rather than throwing. `AccurateRipClient.queryDisc` treats an empty body as "disc not in the database" and returns `null` — which is a normal, expected outcome, not an error worth surfacing as an exception.
 

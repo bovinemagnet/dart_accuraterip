@@ -7,7 +7,7 @@ Point it at a rip's WAV files and it tells you, per track, whether the rip match
 
 == Synopsis
 
-[source,console]
+[source,console,subs="attributes+"]
 ----
 $ {cli-command} verify <file1.wav> <file2.wav> ...
 ----
@@ -27,21 +27,30 @@ In outline, `verify`:
 
 == Sample output
 
-[source,console]
+[source,console,subs="attributes+"]
 ----
 $ {cli-command} verify track*.wav
+Disc ID:
+  discId1:    0x0000f21c
+  discId2:    0x00027ef8
+  cddbDiscId: 0x05021002
+  trackCount: 2
+  url:        http://www.accuraterip.com/accuraterip/c/1/2/dBAR-002-0000f21c-00027ef8-05021002.bin
+
 track  v1         v2         db match      max-conf  result
 -----  ---------  ---------  ------------  --------  ------
-   01   284fc705   dc77f9ab  v1 matched          12  PASS
-   02   9cc1f32e   dd97d2c3  v1 matched          20  PASS
+    1  284fc705   dc77f9ab   v1 matched          12  PASS
+    2  9cc1f32e   dd97d2c3   v1 matched          20  PASS
 
 All tracks verified.
 ----
 
+The `Disc ID` block is always printed first, before the database is queried, so it is there to check even when the lookup finds nothing.
+
 Reading the columns:
 
 `track`::
-1-based track number, in the order the WAV files were given.
+1-based track number, right-aligned, in the order the WAV files were given.
 
 `v1` / `v2`::
 The locally computed AccurateRip v1 and v2 CRCs, as 8-character lowercase hex.

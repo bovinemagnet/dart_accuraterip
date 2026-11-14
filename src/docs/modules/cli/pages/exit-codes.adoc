@@ -33,7 +33,7 @@ Scripts may want to treat it differently from `1`, for example by retrying inste
 Normal output — CRCs, disc IDs, the verification table, query results — is written to stdout.
 Error messages are written to stderr, prefixed with the subcommand name, for example:
 
-[source,console]
+[source,console,subs="attributes+"]
 ----
 $ {cli-command} crc missing.wav
 dart-accuraterip crc: file not found: missing.wav
@@ -41,7 +41,7 @@ dart-accuraterip crc: file not found: missing.wav
 
 Because the two streams are kept separate, you can redirect them independently:
 
-[source,bash]
+[source,bash,subs="attributes+"]
 ----
 {cli-command} verify track*.wav >results.log 2>errors.log
 ----

@@ -54,7 +54,7 @@ It returns `null` only when the input is empty or when nothing at all could be d
 
 The lookup URL has the shape:
 
-[source,text]
+[source,text,subs="attributes+"]
 ----
 {ar-base-url}<a>/<b>/<c>/dBAR-<nnn>-<discId1hex>-<discId2hex>-<cddbhex>.bin
 ----
@@ -62,17 +62,20 @@ The lookup URL has the shape:
 `<nnn>` is the zero-padded, 3-digit track count.
 `<discId1hex>`, `<discId2hex>` and `<cddbhex>` are the 8-hex-digit, zero-padded representations of `discId1`, `discId2` and `cddbDiscId` respectively.
 
-IMPORTANT: `<a>`, `<b>` and `<c>` are the last, second-to-last, and third-to-last *single* hex digits of `discId1` — one character each.
+[IMPORTANT]
+====
+`<a>`, `<b>` and `<c>` are the last, second-to-last, and third-to-last *single* hex digits of `discId1` — one character each.
 For `discId1 = 0x0000f21c`, the trailing digits are `...f21c`, so the path segments are `c` (last), `1` (second-to-last) and `2` (third-to-last), giving:
-+
+
 [source,text]
 ----
 c/1/2
 ----
-+
+
 They are NOT growing, cumulative substrings such as `c/1c/21c`.
 That cumulative form is what an earlier, buggy version of this package emitted, and it 404s against the live server.
 This is fixed and pinned by a golden test asserting the exact path built from the committed fixture.
+====
 
 === Disc IDs used in the URL
 

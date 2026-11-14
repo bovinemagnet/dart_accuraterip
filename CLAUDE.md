@@ -319,7 +319,7 @@ dart pub publish --dry-run                            # must report 0 warnings
 Documentation (Antora, published to GitHub Pages):
 
 ```sh
-npm install                                           # once
+npm ci                                                # once; installs exactly package-lock.json
 npx antora antora-playbook.yml                        # -> build/site/
 npx antora --fetch --log-failure-level=error antora-playbook.yml  # what CI runs
 ```

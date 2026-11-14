@@ -27,8 +27,9 @@ content:
 
 ui:
   bundle:
-    url: https://github.com/bovinemagnet/snowed-under-antora-ui-bundle/releases/latest/download/ui-bundle.zip
-    snapshot: true
+    # Pinned to a tagged release so a new UI release cannot change the
+    # published site without a commit here. Bump the tag deliberately.
+    url: https://github.com/bovinemagnet/snowed-under-antora-ui-bundle/releases/download/v0.2.0/ui-bundle.zip
 
 asciidoc:
   extensions:
@@ -46,7 +47,7 @@ output:
 runtime:
   cache_dir: ./.antora-cache
   # Left false so local builds reuse the cached UI bundle; CI passes
-  # --fetch to pull the latest. A playbook that hard-codes `true`
+  # --fetch to download it afresh. A playbook that hard-codes `true`
   # cannot be turned off again from the command line.
   fetch: false
   log:

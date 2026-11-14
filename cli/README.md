@@ -10,17 +10,22 @@ parsing and `dart:io`'s built-in `HttpClient`).
 
 ## Installation
 
-The CLI is not yet published to pub.dev. Activate it from a checkout
-of the repository:
+Activate it from pub.dev:
+
+```sh
+dart pub global activate dart_accuraterip_cli
+```
+
+or from a checkout of the repository:
 
 ```sh
 dart pub global activate --source path ./cli
 ```
 
-This puts `dart-accuraterip` on your `PATH` (assuming
-`$HOME/.pub-cache/bin` is already there). Once the CLI is published,
-`dart pub global activate dart_accuraterip_cli` will be the standard
-install path.
+Either puts `dart-accuraterip` on your `PATH` (assuming
+`$HOME/.pub-cache/bin` is already there). Prebuilt native binaries
+for Linux, macOS and Windows are also attached to each
+[GitHub release](https://github.com/bovinemagnet/dart_accuraterip/releases).
 
 ## Usage
 
@@ -42,19 +47,20 @@ v1: 284fc705
 v2: dc77f9ab
 ```
 
-Use `--first` / `--last` to skip the 2940-sample CD lead-in /
-lead-out region for the first and/or last track on the disc.
+Use `--first` / `--last` to skip the CD lead-in / lead-out region
+for the first and/or last track on the disc (the first 2939 or the
+last 2940 frames — the asymmetry is part of the protocol).
 Without the flags the full PCM is checksummed.
 
 ### `disc-id` — compute a disc ID from a rip
 
 ```sh
-$ dart-accuraterip disc-id track01.wav track02.wav track03.wav
+$ dart-accuraterip disc-id track01.wav track02.wav
 discId1:    0x0000f21c
 discId2:    0x00027ef8
 cddbDiscId: 0x05021002
-trackCount: 3
-url:        http://www.accuraterip.com/accuraterip/c/1/2/dBAR-003-...
+trackCount: 2
+url:        http://www.accuraterip.com/accuraterip/c/1/2/dBAR-002-0000f21c-00027ef8-05021002.bin
 ```
 
 Positional order is track order. If your rips are named
@@ -65,10 +71,17 @@ expansion is enough: `dart-accuraterip disc-id track*.wav`.
 
 ```sh
 $ dart-accuraterip verify track*.wav
-track  v1         v2         db match    max-conf  result
------  ---------  ---------  ----------  --------  ------
-01     284fc705   dc77f9ab   v1 matched  12        PASS
-02     9cc1f32e   dd97d2c3   v1 matched  20        PASS
+Disc ID:
+  discId1:    0x0000f21c
+  discId2:    0x00027ef8
+  cddbDiscId: 0x05021002
+  trackCount: 2
+  url:        http://www.accuraterip.com/accuraterip/c/1/2/dBAR-002-0000f21c-00027ef8-05021002.bin
+
+track  v1         v2         db match      max-conf  result
+-----  ---------  ---------  ------------  --------  ------
+    1  284fc705   dc77f9ab   v1 matched          12  PASS
+    2  9cc1f32e   dd97d2c3   v1 matched          20  PASS
 
 All tracks verified.
 ```
