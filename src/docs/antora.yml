@@ -20,7 +20,7 @@ asciidoc:
   attributes:
     # --- Release numbers (bump on every release) ---
     lib-version: '0.0.6'
-    cli-version: '0.0.4'
+    cli-version: '0.0.5'
     min-sdk: '3.0.0'
 
     # --- Project coordinates ---

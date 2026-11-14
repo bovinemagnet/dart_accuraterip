@@ -10,7 +10,7 @@
 /// callers that need the distinction.
 ///
 /// Author: Paul Snow
-/// Since: 0.0.0
+/// Since: 0.0.5
 library;
 
 import 'dart:typed_data';
