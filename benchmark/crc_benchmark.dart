@@ -9,6 +9,14 @@
 // stereo frames/s × 60 s × 4 bytes/frame ≈ 10.1 MiB) so the numbers
 // approximate single-track throughput on the Dart VM.
 //
+// Each CRC is measured twice: on a 4-byte-aligned buffer (the
+// zero-copy path) and on a view starting 2 bytes into its buffer,
+// which is what `extractPcmFromWav` returns for a WAV whose chunks
+// before `data` leave the payload misaligned (a typical ffmpeg
+// `LIST`/`INFO` chunk). Misaligned input is copied before
+// checksumming, so the gap between the two rows is the cost of that
+// copy.
+//
 // This is a VM-only benchmark — the web path uses a separate
 // split 16-bit multiply implementation that is exercised by
 // `test/accuraterip_crc_differential_test.dart`.
@@ -37,13 +45,29 @@ void main() {
   stdout('  warmup: $_warmupIterations   measured: $_measuredIterations');
   stdout('');
 
-  _benchmark('computeArV1', megabytes, () {
-    computeArV1(pcm, isFirstTrack: false, isLastTrack: false);
+  // The same bytes, viewed 2 bytes into a larger buffer.
+  final backing = Uint8List(pcm.length + 2)..setRange(2, pcm.length + 2, pcm);
+  final misaligned = Uint8List.sublistView(backing, 2);
+
+  _benchmark('computeArV1 (aligned)   ', megabytes, () {
+    _sink += computeArV1(pcm, isFirstTrack: false, isLastTrack: false);
   });
-  _benchmark('computeArV2', megabytes, () {
-    computeArV2(pcm, isFirstTrack: false, isLastTrack: false);
+  _benchmark('computeArV1 (misaligned)', megabytes, () {
+    _sink += computeArV1(misaligned, isFirstTrack: false, isLastTrack: false);
   });
+  _benchmark('computeArV2 (aligned)   ', megabytes, () {
+    _sink += computeArV2(pcm, isFirstTrack: false, isLastTrack: false);
+  });
+  _benchmark('computeArV2 (misaligned)', megabytes, () {
+    _sink += computeArV2(misaligned, isFirstTrack: false, isLastTrack: false);
+  });
+  stdout('');
+  stdout('  (result sink: 0x${_sink.toRadixString(16)})');
 }
+
+/// Every result is folded in here and printed at the end, so the VM
+/// cannot discard a CRC call whose result would otherwise be unused.
+int _sink = 0;
 
 void _benchmark(String label, double megabytes, void Function() run) {
   for (var i = 0; i < _warmupIterations; i++) {
