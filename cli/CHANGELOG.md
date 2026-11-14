@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.0.5
 
 - **`verify` and `query` no longer report a failed lookup as "No
   entry in the AccurateRip database"** (closes #16). A network
@@ -12,9 +12,10 @@
 - **An unreadable WAV file exits 64 with a one-line error**
   instead of crashing with a stack trace and exit 255 (closes
   #17), matching the documented exit codes.
-- Picks up the library fix for WAV files whose `data` chunk is not
-  4-byte aligned (#13), which previously crashed `crc` and
-  `verify`; this needs a library release after 0.0.5.
+- Requires `dart_accuraterip ^0.0.6`, which fixes the crash on WAV
+  files whose `data` chunk is not 4-byte aligned (#13) — previously
+  `crc` and `verify` died with a `RangeError` on, for example, files
+  carrying an ffmpeg `LIST`/`INFO` chunk.
 - **Prebuilt release archives now contain an executable named
   `dart-accuraterip`** (`dart-accuraterip.exe` on Windows), matching
   the name `pub global activate` installs and every documented
